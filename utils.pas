@@ -1,6 +1,6 @@
 {*************************************************************************************
   This file is part of Transmission Remote GUI.
-  Copyright (c) 2008-2014 by Yury Sidorov.
+  Copyright (c) 2008-2019 by Yury Sidorov and Transmission Remote GUI working group.
 
   Transmission Remote GUI is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -47,7 +47,7 @@ type
     property FileName: utf8string Read FFilename;
   end;
 
-  
+
   { TIniFileUtf8 }
 
   TIniFileUtf8 = class(TIniFile)
@@ -60,8 +60,8 @@ type
     procedure UpdateFile; override;
     function getFileName() : string;
   end;
-  
-  
+
+
 
 function FileOpenUTF8(Const FileName : string; Mode : Integer) : THandle;
 function FileCreateUTF8(Const FileName : string) : THandle;
@@ -104,7 +104,7 @@ uses
 {$ifdef CALLSTACK}
   lineinfo2,
 {$endif CALLSTACK}
-  FileUtil, StdCtrls, Graphics;
+  FileUtil, LazUTF8, LazFileUtils, StdCtrls, Graphics;
 
 {$ifdef windows}
 function FileOpenUTF8(Const FileName : string; Mode : Integer) : THandle;
@@ -114,28 +114,28 @@ const
     GENERIC_WRITE,
     GENERIC_READ or GENERIC_WRITE);
   ShareMode: array[0..4] of Integer = (
-               0,
-               0,
-               FILE_SHARE_READ,
-               FILE_SHARE_WRITE,
-               FILE_SHARE_READ or FILE_SHARE_WRITE);
+              0,
+              0,
+              FILE_SHARE_READ,
+              FILE_SHARE_WRITE,
+              FILE_SHARE_READ or FILE_SHARE_WRITE);
 begin
   Result := CreateFileW(PWideChar(UTF8Decode(FileName)), dword(AccessMode[Mode and 3]),
-                       dword(ShareMode[(Mode and $F0) shr 4]), nil, OPEN_EXISTING,
-                       FILE_ATTRIBUTE_NORMAL, 0);
+                      dword(ShareMode[(Mode and $F0) shr 4]), nil, OPEN_EXISTING,
+                      FILE_ATTRIBUTE_NORMAL, 0);
   //if fail api return feInvalidHandle (INVALIDE_HANDLE=feInvalidHandle=-1)
 end;
 
 function FileCreateUTF8(Const FileName : string) : THandle;
 begin
   Result := CreateFileW(PWideChar(UTF8Decode(FileName)), GENERIC_READ or GENERIC_WRITE,
-                       0, nil, CREATE_ALWAYS, FILE_ATTRIBUTE_NORMAL, 0);
+                      0, nil, CREATE_ALWAYS, FILE_ATTRIBUTE_NORMAL, 0);
 end;
 
 function FileCreateUTF8(Const FileName : string; Rights: Cardinal) : THandle;
 begin
   Result := CreateFileW(PWideChar(UTF8Decode(FileName)), GENERIC_READ or GENERIC_WRITE,
-                       0, nil, CREATE_ALWAYS, FILE_ATTRIBUTE_NORMAL, 0);
+                      0, nil, CREATE_ALWAYS, FILE_ATTRIBUTE_NORMAL, 0);
 end;
 
 var
@@ -174,7 +174,7 @@ var
   s: widestring;
 begin
   if Win32Platform <> VER_PLATFORM_WIN32_NT then begin
-    Result:=FileUtil.ParamStrUTF8(Param);
+    Result:=LazUTF8.ParamStrUTF8(Param);
     exit;
   end;
 
@@ -239,7 +239,7 @@ end;
 
 function ParamStrUTF8(Param: Integer): utf8string;
 begin
-  Result:=FileUtil.ParamStrUTF8(Param);
+  Result:=LazUTF8.ParamStrUTF8(Param);
 end;
 
 function ParamCount: integer;
@@ -403,7 +403,7 @@ var
 begin
   Result:=-1;
   WrkProcess:=TProcess.Create(nil);
-  WrkProcess.Options:=[poNoConsole,poWaitOnExit];  
+  WrkProcess.Options:=[poNoConsole,poWaitOnExit];
 
   cmd:=FindDefaultExecutablePath('xdg-open');
   if cmd = '' then begin
@@ -452,7 +452,7 @@ begin
 {$endif mswindows}
 
 {$ifdef darwin}
-  Result:=fpSystem('Open "' + URL + '"') = 0;
+  Result:=fpSystem('open "' + URL + '"') = 0;
 {$else darwin}
 
   {$ifdef unix}
@@ -637,7 +637,7 @@ end;
 
 function TIniFileUtf8.getFileName() : string;
 begin
-	result:=FFileName;
+  result:=FFileName;
 end;
 
 

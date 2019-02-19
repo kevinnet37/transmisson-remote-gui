@@ -1,6 +1,6 @@
 {*************************************************************************************
   This file is part of Transmission Remote GUI.
-  Copyright (c) 2008-2014 by Yury Sidorov.
+  Copyright (c) 2008-2019 by Yury Sidorov and Transmission Remote GUI working group.
 
   Transmission Remote GUI is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -93,6 +93,10 @@ type
     edPort: TSpinEdit;
     txHost: TLabel;
     txPassword: TLabel;
+    txCertFile: TLabel;
+    edCertFile: TEdit;
+    txCertPass: TLabel;
+    edCertPass: TEdit;
     procedure btDelClick(Sender: TObject);
     procedure btNewClick(Sender: TObject);
     procedure btOKClick(Sender: TObject);
@@ -110,6 +114,7 @@ type
     procedure FormCreate(Sender: TObject);
     procedure FormShow(Sender: TObject);
     procedure tabPathsShow(Sender: TObject);
+    procedure cbSSLClick(Sender: TObject);
   private
     FCurConn: string;
     FCurHost: string;
@@ -168,6 +173,15 @@ begin
   cbAskPasswordClick(nil);
 end;
 
+procedure TConnOptionsForm.cbSSLClick(Sender: TObject);
+begin
+{$ifndef windows}
+  EnableControls(cbSSL.Checked, [txCertFile, edCertFile, txCertPass, edCertPass]);
+{$else}
+  EnableControls(False, [txCertFile, edCertFile, txCertPass, edCertPass]);
+{$endif windows}
+end;
+
 procedure TConnOptionsForm.cbConnectionSelect(Sender: TObject);
 var
   i: integer;
@@ -201,6 +215,10 @@ procedure TConnOptionsForm.cbShowAdvancedClick(Sender: TObject);
 begin
   txRpcPath.Visible:=cbShowAdvanced.Checked;
   edRpcPath.Visible:=cbShowAdvanced.Checked;
+  txCertFile.Visible:=cbShowAdvanced.Checked;
+  edCertFile.Visible:=cbShowAdvanced.Checked;
+  txCertPass.Visible:=cbShowAdvanced.Checked;
+  edCertPass.Visible:=cbShowAdvanced.Checked;
 {$ifndef LCLgtk2}
   tabConnection.TabVisible:=cbShowAdvanced.Checked;
 {$endif LCLgtk2}
@@ -506,11 +524,17 @@ begin
     FCurHost:=edHost.Text;
     edPort.Value:=ReadInteger(Sec, 'Port', 9091);
     cbSSL.Checked:=ReadBool(Sec, 'UseSSL', False);
+    edCertFile.Text:=ReadString(Sec, 'CertFile', '');
+    if cbSSL.Checked then
+      if ReadString(Sec, 'CertPass', '') <> '' then
+        edCertPass.Text:='******'
+      else
+        edCertPass.Text:='';
     cbAutoReconnect.Checked:=ReadBool(Sec, 'Autoreconnect', False);
     edUserName.Text:=ReadString(Sec, 'UserName', '');
-    cbAuth.Checked:=edUserName.Text <> '';
+    s:=ReadString(Sec, 'Password', '');
+    cbAuth.Checked:=(edUserName.Text <> '') or (s <> '');
     if cbAuth.Checked then begin
-      s:=ReadString(Sec, 'Password', '');
       cbAskPassword.Checked:=s = '-';
       if not cbAskPassword.Checked then
         if s <> '' then
@@ -519,6 +543,7 @@ begin
           edPassword.Text:='';
     end;
     cbAuthClick(nil);
+    cbSSLClick(nil);
     edRpcPath.Text:=ReadString(Sec, 'RpcPath', DefaultRpcPath);
     cbUseProxy.Checked:=ReadBool(Sec, 'UseProxy', False);
     cbUseSocks5.Checked:=ReadBool(Sec, 'UseSockProxy', False);
@@ -549,7 +574,7 @@ procedure TConnOptionsForm.SaveConnSettings(const ConnName: string);
 var
   Sec: string;
   i: integer;
-  s: string;
+  s,ss: string;
 begin
   if ConnName = '' then
     exit;
@@ -557,11 +582,23 @@ begin
     if IsConnSettingsChanged(ConnName) then
       ActiveSettingChanged:=True;
 
-  Ini.WriteInteger('Interface','MaxFoldersHistory', edMaxFolder.Value); 
+  Ini.WriteInteger('Interface','MaxFoldersHistory', edMaxFolder.Value);
   with Ini do begin
     Sec:='Connection.' + ConnName;
     WriteString(Sec, 'Host', Trim(edHost.Text));
     WriteBool(Sec, 'UseSSL', cbSSL.Checked);
+    if not cbSSL.Checked then begin
+      edCertFile.Text:='';
+      edCertPass.Text:='';
+    end;
+    WriteString(Sec, 'CertFile', edCertFile.Text);
+    if edCertPass.Text <> '******' then begin
+      if edCertPass.Text = '' then
+        s:=''
+      else
+        s:=EncodeBase64(edCertPass.Text);
+      WriteString(Sec, 'CertPass', s);
+    end;
     WriteBool(Sec, 'Autoreconnect', cbAutoReconnect.Checked);
     WriteInteger(Sec, 'Port', edPort.Value);
     if not cbAuth.Checked then begin
@@ -574,6 +611,11 @@ begin
       WriteString(Sec, 'Password', '-')
     else
       if edPassword.Text <> '******' then begin
+        ss := edPassword.Text;
+        if (Pos('{', ss) > 0) or (Pos('}', ss) > 0) then begin
+          MessageDlg('The password can''t contain the characters: { }', mtError, [mbOK], 0);
+        end;
+
         if edPassword.Text = '' then
           s:=''
         else
@@ -626,6 +668,9 @@ begin
     Result:=(edPort.Value <> ReadInteger(Sec, 'Port', 9091)) or
             (edHost.Text <> ReadString(Sec, 'Host', '')) or
             (cbSSL.Checked <> ReadBool(Sec, 'UseSSL', False)) or
+            (edCertFile.Text <> ReadString(Sec, 'CertFile', '')) or
+            ((ReadString(Sec, 'CertPass', '') = '') and (edCertPass.Text <> '')) or
+            ((ReadString(Sec, 'CertPass', '') <> '') and (edCertPass.Text <> '******')) or
             (cbAutoReconnect.Checked <> ReadBool(Sec, 'Autoreconnect', False)) or
             (edUserName.Text <> ReadString(Sec, 'UserName', '')) or
             ((ReadString(Sec, 'Password', '') = '') and (edPassword.Text <> '')) or

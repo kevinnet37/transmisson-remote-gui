@@ -1,8 +1,8 @@
 {************************************************************
-   Copyright (c) 2010 Alex Cherednichenko, aka Alex7Che.
-   Copyright (c) 2011-2013 Yury Sidorov.
+  Copyright (c) 2010 Alex Cherednichenko, aka Alex7Che.
+  Copyright (c) 2011-2013 Yury Sidorov.
 
-   Published at GNU General Public License as Free Software.
+  Published at GNU General Public License as Free Software.
  ************************************************************}
 
 unit ResTranslator;
@@ -12,7 +12,7 @@ unit ResTranslator;
 interface
 
 uses
-  Classes, StrUtils, SysUtils, FileUtil, LResources, TypInfo, LCLProc, LazUTF8;
+  Classes, StrUtils, SysUtils, FileUtil, LazFileUtils, LResources, TypInfo, LCLProc, LazUTF8;
 
 type
 
@@ -243,7 +243,7 @@ procedure MakeTranslationFile(Language: AnsiString); overload;
 var
   lLang, sLang, s: string;
 begin
-  LCLGetLanguageIDs(lLang, sLang);
+  LazGetLanguageIDs(lLang, sLang);
   sLang:=AnsiLowerCase(sLang);
   s:=ExtractFileNameOnly(ParamStrUtf8(0));
   if (sLang <> '') and not FileExistsUTF8(DefaultLangDir + s + '.' + sLang) then
@@ -335,7 +335,7 @@ var
   lLang, sLang, s: string;
   i: integer;
 begin
-  LCLGetLanguageIDs(lLang, sLang);
+  LazGetLanguageIDs(lLang, sLang);
   lLang:=LowerCase(lLang);
   sLang:=LowerCase(sLang);
 {$ifdef windows}
@@ -488,9 +488,9 @@ end;
 function TTranslateStringList.DoCompareText(const s1, s2: string): PtrInt;
 begin
  if CaseSensitive then
-   result:=AnsiCompareText(s1,s2)
+  result:=AnsiCompareText(s1,s2)
  else
-   result:=AnsiCompareText(UTF8UpperCase(s1),UTF8UpperCase(s2));
+  result:=AnsiCompareText(UTF8UpperCase(s1),UTF8UpperCase(s2));
 end;
 
 constructor TTranslateStringList.Create(const FileName: string);

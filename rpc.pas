@@ -1,6 +1,6 @@
 {*************************************************************************************
   This file is part of Transmission Remote GUI.
-  Copyright (c) 2008-2014 by Yury Sidorov.
+  Copyright (c) 2008-2019 by Yury Sidorov and Transmission Remote GUI working group.
 
   Transmission Remote GUI is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -400,8 +400,8 @@ begin
   end;
 
   args:=FRpc.RequestInfo(0, ['id', 'name', 'status', 'errorString', 'announceResponse', 'recheckProgress',
-                             'sizeWhenDone', 'leftUntilDone', 'rateDownload', 'rateUpload', 'trackerStats',
-                             'metadataPercentComplete'], ExtraFields);
+                            'sizeWhenDone', 'leftUntilDone', 'rateDownload', 'rateUpload', 'trackerStats',
+                            'metadataPercentComplete'], ExtraFields);
   try
     if (args <> nil) and not Terminated then begin
       FRpc.RequestFullInfo:=False;
@@ -504,12 +504,12 @@ var
   t: TJSONArray;
 begin
   args:=FRpc.RequestInfo(TorrentId, ['totalSize', 'sizeWhenDone', 'leftUntilDone', 'pieceCount', 'pieceSize', 'haveValid',
-                                     'hashString', 'comment', 'downloadedEver', 'uploadedEver', 'corruptEver', 'errorString',
-                                     'announceResponse', 'downloadLimit', 'downloadLimitMode', 'uploadLimit', 'uploadLimitMode',
-                                     'maxConnectedPeers', 'nextAnnounceTime', 'dateCreated', 'creator', 'eta', 'peersSendingToUs',
-                                     'seeders','peersGettingFromUs','leechers', 'uploadRatio', 'addedDate', 'doneDate',
-                                     'activityDate', 'downloadLimited', 'uploadLimited', 'downloadDir', 'id', 'pieces',
-                                     'trackerStats', 'secondsDownloading', 'secondsSeeding', 'magnetLink']);									 
+                                    'hashString', 'comment', 'downloadedEver', 'uploadedEver', 'corruptEver', 'errorString',
+                                    'announceResponse', 'downloadLimit', 'downloadLimitMode', 'uploadLimit', 'uploadLimitMode',
+                                    'maxConnectedPeers', 'nextAnnounceTime', 'dateCreated', 'creator', 'eta', 'peersSendingToUs',
+                                    'seeders','peersGettingFromUs','leechers', 'uploadRatio', 'addedDate', 'doneDate',
+                                    'activityDate', 'downloadLimited', 'uploadLimited', 'downloadDir', 'id', 'pieces',
+                                    'trackerStats', 'secondsDownloading', 'secondsSeeding', 'magnetLink', 'isPrivate']);
   try
     if args <> nil then begin
       t:=args.Arrays['torrents'];
@@ -585,8 +585,8 @@ procedure TRpc.InitSSL;
 {$ifndef darwin}
   procedure CheckOpenSSL;
   const
-	OpenSSLVersions: array[1..4] of string =
-	('0.9.8', '1.0.0', '1.0.2', '1.1.0'); 
+  OpenSSLVersions: array[1..4] of string =
+  ('0.9.8', '1.0.0', '1.0.2', '1.1.0');
   var
     hLib1, hLib2: TLibHandle;
     i: integer;
@@ -907,11 +907,23 @@ begin
 end;
 
 procedure TRpc.CreateHttp;
+var
+  i : integer;
 begin
   Http.Free;
   Http:=THTTPSend.Create;
   Http.Protocol:='1.1';
-  Http.Timeout:=30000;
+
+  i := Ini.ReadInteger('NetWork', 'HttpTimeout', 30);
+  if (i < 2) or (i > 999) then i:= 30; // default
+  Ini.WriteInteger('NetWork', 'HttpTimeout', i);
+  Http.Timeout:= i * 1000;
+
+  i := Ini.ReadInteger('NetWork', 'ConnectTimeout', 0);
+  if (i < 0) or (i > 999) then i:= 0; // default
+  Ini.WriteInteger('NetWork', 'ConnectTimeout', i);
+  Http.FSock.ConnectionTimeout := i * 1000;
+
   Http.Headers.NameValueSeparator:=':';
 end;
 

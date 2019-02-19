@@ -1,6 +1,6 @@
 TranslationLanguage=Español
 
-"Remote to local path mappings.~~Examples:~/share=\\pch\share~/var/downloads/music=Z:\music"="Mapeado de rutas remotas a locales.~~Ejemplos:~/share=\\pch\share~/var/downloads/music=Z:\music"
+"Remote to local path mappings.~Examples:~/share=\\pch\share~/var/downloads/music=Z:\music"="Mapeado de rutas remotas a locales.~Ejemplos:~/share=\\pch\share~/var/downloads/music=Z:\music"
 %d x %s (have %d)=%d x %s (descargadas %d)
 %ds=%ds
 %s (%d hashfails)=%s (%d fallos de hash)
@@ -265,7 +265,7 @@ Browse=Explorar
 Enable µTP=Habilitar µTP
 Select a folder for download=Seleccione una carpeta para descargar
 Select torrent location=Select torrent location
-A new version of %s is available.~Your current version: %s~The new version: %s~~Do you wish to open the Downloads web page?=Una nueva versión de %s está disponible.~La versión actual es: %s~La nueva versión es: %s~~¿Desea abrir la web de descarga?
+A new version of %s is available.~Your current version: %s~The new version: %s~Do you wish to open the Downloads web page?=Una nueva versión de %s está disponible.~La versión actual es: %s~La nueva versión es: %s~¿Desea abrir la web de descarga?
 Advanced=Avanzado
 Check for new version every=Comprobar nuevas versiones cada
 Check for updates=Buscar nuevas versiones
@@ -346,3 +346,33 @@ Torrent not registered with this tracker==Torrent no registrado en este tracker
 Unable to find path mapping.~Use the application's options to setup path mappings=No se ha podido encontrar la ruta. ~ Utilice las opciones de la aplicación para asignar la ruta
 Update trackers for the existing torrent?=¿Actualizar los trackers para el torrent existente?
 You need to restart the application to apply changes=Es necesario reiniciar la aplicación para aplicar los cambios
+Development site=Sitio de Desarrollo
+Magnet Link=Enlace Magnet
+Status bar - Sizes=Panel de Estado - Tamaños
+Total: %s=Total: %s
+Remaining: %s=Pendiente: %s
+Done: %s=Terminado: %s
+Selected: %s=Seleccionado: %s
+Export settings=Exportar Configuración
+Import settings=Importar Configuración
+Size left=Tamaño faltante
+Always auto-reconnect=auto-reconnect Siempre
+The maximum history of directories for storage of torrents=El máximo historial de directorioss para almacenamiento de torrents
+Delete destination folder=Borrar carpeta de destino
+Template:=Plantilla:
+for example: *.avi *.mkv=por ejemplo: *.avi *.mkv
+Copy Magnet Link(s)=Copiar Enlace(s) Magnet
+Application Options (Ctrl+F9)=Opciones de la Aplicación (Ctrl+F9)
+Connection refused=Conexión rechazada
+Access violation=Violación de acceso
+Menu=Menuú
+Toolbar=Barra de Herramientas
+Connection timed out=Conexión caducada
+Other Winsock error=Otro error de Winsock
+Default=Por defecto
+Left->Right=Izquierda->Derecha
+Right->Left=Derecha->Izquierda-
+Right->Left (No Align)=Derecha->Izquierda (Sin Alineación)
+Right->Left (Reading Only)=Derecha->Izquierda (Lectura Solamente)
+Host not found=Host no encontrado
+User Menu=Menú del Usuario

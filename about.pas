@@ -1,6 +1,6 @@
 {*************************************************************************************
   This file is part of Transmission Remote GUI.
-  Copyright (c) 2008-2014 by Yury Sidorov.
+  Copyright (c) 2008-2019 by Yury Sidorov and Transmission Remote GUI working group.
 
   Transmission Remote GUI is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -24,15 +24,15 @@ unit About;
 interface
 
 uses
-  BaseForm, Classes, SysUtils, FileUtil, LResources, Forms, Controls, Graphics, Dialogs, StdCtrls, ComCtrls, ExtCtrls, ButtonPanel,
+  BaseForm, Classes, SysUtils, FileUtil, LResources, Forms, Controls, Graphics, Dialogs, StdCtrls, ComCtrls, ExtCtrls, ButtonPanel, lclversion,
     ssl_openssl, ssl_openssl_lib;
 
 resourcestring
   SErrorCheckingVersion = 'Error checking for new version.';
   SNewVersionFound = 'A new version of %s is available.' + LineEnding +
-                     'Your current version: %s' + LineEnding +
-                     'The new version: %s' + LineEnding + LineEnding +
-                     'Do you wish to open the Downloads web page?';
+                    'Your current version: %s' + LineEnding +
+                    'The new version: %s' + LineEnding + LineEnding +
+                    'Do you wish to open the Downloads web page?';
   SLatestVersion = 'No updates have been found.' + LineEnding + 'You are running the latest version of %s.';
 
 type
@@ -43,11 +43,9 @@ type
     Bevel1: TBevel;
     Buttons: TButtonPanel;
     edLicense: TMemo;
-    imgDonate: TImage;
     imgTransmission: TImage;
     imgSynapse: TImage;
     imgLazarus: TImage;
-    txDonate: TLabel;
     txHomePage: TLabel;
     txAuthor: TLabel;
     txVersion: TLabel;
@@ -55,6 +53,7 @@ type
     Page: TPageControl;
     tabAbout: TTabSheet;
     tabLicense: TTabSheet;
+    txVersFPC: TLabel;
     procedure FormCreate(Sender: TObject);
     procedure imgDonateClick(Sender: TObject);
     procedure imgLazarusClick(Sender: TObject);
@@ -64,7 +63,7 @@ type
     { private declarations }
   public
     { public declarations }
-  end; 
+  end;
 
 procedure CheckNewVersion(Async: boolean = True);
 procedure GoHomePage;
@@ -113,15 +112,14 @@ end;
 procedure GoHomePage;
 begin
   AppBusy;
-  OpenURL('https://github.com/leonsoft-kras/transmisson-remote-gui/releases');
+  OpenURL('https://github.com/transmission-remote-gui/transgui/releases');
   AppNormal;
 end;
 
 procedure GoGitHub;
 begin
   AppBusy;
-  //OpenURL('http://code.google.com/p/transmisson-remote-gui/wiki/Donate');
-  //OpenURL('https://github.com/xorkrus/transmisson-remote-gui');
+  OpenURL('https://github.com/transmission-remote-gui/transgui');
   AppNormal;
 end;
 
@@ -145,7 +143,7 @@ begin
 
   Application.ProcessMessages;
   AppBusy;
-  OpenURL('https://github.com/leonsoft-kras/transmisson-remote-gui/releases');
+  OpenURL('https://github.com/transmission-remote-gui/transgui/releases');
   AppNormal;
 end;
 
@@ -182,7 +180,7 @@ begin
           FHttp.ProxyUser:=RpcObj.Http.ProxyUser;
           FHttp.ProxyPass:=RpcObj.Http.ProxyPass;
         end;
-        if FHttp.HTTPMethod('GET', 'https://raw.githubusercontent.com/leonsoft-kras/transmisson-remote-gui/master/VERSION.txt') then begin
+        if FHttp.HTTPMethod('GET', 'https://raw.githubusercontent.com/transmission-remote-gui/transgui/master/VERSION.txt') then begin
           if FHttp.ResultCode = 200 then begin
             SetString(FVersion, FHttp.Document.Memory, FHttp.Document.Size);
             FVersion:=Trim(FVersion);
@@ -235,6 +233,9 @@ begin
   txAppName.Caption:=AppName;
   txVersion.Caption:=Format(txVersion.Caption, [AppVersion]);
   Page.ActivePageIndex:=0;
+
+  txVersFPC.caption := 'Fpc : ' + {$I %FPCVERSION%} + '   Lazarus : ' +lcl_version;
+
 {$ifdef lclcarbon}
   s:=edLicense.Text;
   edLicense.Text:='';
@@ -252,7 +253,7 @@ end;
 procedure TAboutForm.imgLazarusClick(Sender: TObject);
 begin
   AppBusy;
-  OpenURL('http://www.lazarus.freepascal.org');
+  OpenURL('https://www.lazarus-ide.org');
   AppNormal;
 end;
 
@@ -260,4 +261,3 @@ initialization
   {$I about.lrs}
 
 end.
-

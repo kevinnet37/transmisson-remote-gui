@@ -1,6 +1,6 @@
 {*************************************************************************************
   This file is part of Transmission Remote GUI.
-  Copyright (c) 2008-2014 by Yury Sidorov.
+  Copyright (c) 2008-2019 by Yury Sidorov and Transmission Remote GUI working group.
 
   Transmission Remote GUI is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -24,7 +24,7 @@ unit DaemonOptions;
 interface
 
 uses
-  Classes, SysUtils, FileUtil, LResources, Forms, Controls, Graphics, Dialogs, StdCtrls, ExtCtrls, Spin, ComCtrls, CheckLst, EditBtn, MaskEdit,
+  Classes, SysUtils, LazUTF8, LResources, Forms, Controls, Graphics, Dialogs, StdCtrls, ExtCtrls, Spin, ComCtrls, CheckLst, EditBtn, MaskEdit,
   ButtonPanel, BaseForm;
 
 resourcestring
@@ -120,7 +120,7 @@ type
     { private declarations }
   public
     { public declarations }
-  end; 
+  end;
 
 implementation
 
@@ -203,18 +203,18 @@ begin
   end;
   edBlocklistURL.Text:=Trim(edBlocklistURL.Text);
   if cbAutoAlt.Checked then begin
-     if StrToTimeDef(edAltTimeBegin.Text, -1) < 0 then begin
-       Page.ActivePage:=tabBandwidth;
-       edAltTimeBegin.SetFocus;
-       MessageDlg(SInvalidTime, mtError, [mbOK], 0);
-       exit;
-     end;
-     if StrToTimeDef(edAltTimeEnd.Text, -1) < 0 then begin
-       Page.ActivePage:=tabBandwidth;
-       edAltTimeEnd.SetFocus;
-       MessageDlg(SInvalidTime, mtError, [mbOK], 0);
-       exit;
-     end;
+    if StrToTimeDef(edAltTimeBegin.Text, -1) < 0 then begin
+      Page.ActivePage:=tabBandwidth;
+      edAltTimeBegin.SetFocus;
+      MessageDlg(SInvalidTime, mtError, [mbOK], 0);
+      exit;
+    end;
+    if StrToTimeDef(edAltTimeEnd.Text, -1) < 0 then begin
+      Page.ActivePage:=tabBandwidth;
+      edAltTimeEnd.SetFocus;
+      MessageDlg(SInvalidTime, mtError, [mbOK], 0);
+      exit;
+    end;
   end;
   ModalResult:=mrOK;
 end;
@@ -248,7 +248,7 @@ var
   i, j, x, wd: integer;
   cb: TCheckBox;
 begin
-  bidiMode := GetBiDi(); 
+  bidiMode := GetBiDi();
   Page.ActivePageIndex:=0;
   cbEncryption.Items.Add(sEncryptionDisabled);
   cbEncryption.Items.Add(sEncryptionEnabled);

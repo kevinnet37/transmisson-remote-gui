@@ -1,6 +1,6 @@
 {*************************************************************************************
   This file is part of Transmission Remote GUI.
-  Copyright (c) 2008-2014 by Yury Sidorov.
+  Copyright (c) 2008-2019 by Yury Sidorov and Transmission Remote GUI working group.
 
   Transmission Remote GUI is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -52,11 +52,11 @@ implementation
 uses LCLType, ButtonPanel, VarGrid, ComCtrls, StdCtrls, ExtCtrls, lclversion;
 
 var
-  ScaleM, ScaleD: integer;
+  ScaleMultiplier, ScaleDivider: integer;
 
 function ScaleInt(i: integer): integer;
 begin
-  Result:=i*ScaleM div ScaleD;
+  Result:=i*ScaleMultiplier div ScaleDivider;
 end;
 
 type THackControl = class(TWinControl) end;
@@ -117,8 +117,8 @@ begin
     if C is TWinControl then
       TWinControl(C).DisableAlign;
     try
-      if ScaleM <> ScaleD then begin
-        ScaleConstraints(ScaleM, ScaleD);
+      if ScaleMultiplier <> ScaleDivider then begin
+        ScaleConstraints(ScaleMultiplier, ScaleDivider);
         R := BaseBounds;
         R.Left := ScaleInt(R.Left);
         R.Top := ScaleInt(R.Top);
@@ -154,11 +154,11 @@ begin
         if C is TVarGrid then
           with TVarGrid(C).Columns do
             for i:=0 to Count - 1 do
-               Items[i].Width:=ScaleInt(Items[i].Width);
+              Items[i].Width:=ScaleInt(Items[i].Width);
         if C is TStatusBar then
           with TStatusBar(C) do
             for i:=0 to Panels.Count - 1 do
-               Panels[i].Width:=ScaleInt(Panels[i].Width);
+              Panels[i].Width:=ScaleInt(Panels[i].Width);
       end;
 
       // Runtime fixes
@@ -237,26 +237,26 @@ var
   i: integer;
   tm: TLCLTextMetric;
 begin
-  if ScaleD <> 0 then exit;
-  ScaleD:=11;
+  if ScaleDivider <> 0 then exit;
+  ScaleDivider:=11;
   i:=Screen.SystemFont.Height;
   if i = 0 then begin
     if Canvas.GetTextMetrics(tm) then begin
-      ScaleM:=tm.Ascender;
-      if ScaleM < 11 then
-        ScaleM:=11;
+      ScaleMultiplier:=tm.Ascender;
+      if ScaleMultiplier < 11 then
+        ScaleMultiplier:=11;
     end
     else begin
-      ScaleM:=Canvas.TextHeight('Wy');
-      ScaleD:=13;
+      ScaleMultiplier:=Canvas.TextHeight('Wy');
+      ScaleDivider:=13;
     end;
-    if ScaleM = 0 then
-      ScaleM:=ScaleD;
+    if ScaleMultiplier = 0 then
+      ScaleMultiplier:=ScaleDivider;
   end
   else
-    ScaleM:=Abs(i);
-  ScaleM:=ScaleM*IntfScale;
-  ScaleD:=ScaleD*100;
+    ScaleMultiplier:=Abs(i);
+  ScaleMultiplier:=ScaleMultiplier*IntfScale;
+  ScaleDivider:=ScaleDivider*100;
 end;
 
 initialization

@@ -1,6 +1,6 @@
 {*************************************************************************************
   This file is part of Transmission Remote GUI.
-  Copyright (c) 2008-2014 by Yury Sidorov.
+  Copyright (c) 2008-2019 by Yury Sidorov and Transmission Remote GUI working group.
 
   Transmission Remote GUI is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -24,7 +24,7 @@ unit VarGrid;
 interface
 
 uses
-  Classes, SysUtils, Grids, VarList, Graphics, Controls, LMessages, Forms, StdCtrls, LCLType, ExtCtrls,LazUTF8;
+  Classes, SysUtils, Grids, VarList, Graphics, Controls, LMessages, Forms, StdCtrls, LCLType, ExtCtrls,LazUTF8, LCLVersion;
 
 type
   TVarGrid = class;
@@ -238,7 +238,7 @@ procedure Register;
 implementation
 
 uses Variants, Math, GraphType, lclintf, Themes, types, lclproc
-     {$ifdef LCLcarbon} , carbonproc {$endif LCLcarbon};
+    {$ifdef LCLcarbon} , carbonproc {$endif LCLcarbon};
 
 const
   roSelected = 1;
@@ -546,7 +546,7 @@ begin
     if VarIsNull(v) or VarIsEmpty(v) then
       s:= ''
     else
-      s:= LazUTF8.UTF8UpperCase(UTF8Encode(widestring(v))); 
+      s:= LazUTF8.UTF8UpperCase(UTF8Encode(widestring(v)));
     if Copy(s, 1, Length(ss)) = ss then begin
       Result:=i;
       break;
@@ -811,6 +811,7 @@ procedure TVarGrid.MouseMove(Shift: TShiftState; X, Y: Integer);
 var
   pt: TPoint;
 begin
+  NullStrictConvert := False;
   inherited MouseMove(Shift, X, Y);
   pt:=MouseToCell(Point(x, y));
   if (FHintCell.x <> -1) and ((FHintCell.x <> pt.x) or (FHintCell.y <> pt.y)) then begin
@@ -1082,7 +1083,7 @@ begin
     if ARow >= FixedRows then begin
       v:=Items[dc, ARow - FixedRows];
       if not VarIsNull(v) and not VarIsEmpty(v) then
-        CellAttribs.Text:=UTF8Encode(WideString(v)) 
+        CellAttribs.Text:=UTF8Encode(WideString(v))
       else
         CellAttribs.Text:='';
     end
@@ -1142,10 +1143,17 @@ begin
   Result:=inherited DoMouseWheel(Shift, WheelDelta, MousePos);
   if not Result then begin
     if Mouse.WheelScrollLines = -1 then
+  {$IF LCL_FULLVERSION < 1080000}
       GridMouseWheel(Shift, -WheelDelta*VisibleRowCount div 120)
     else
       GridMouseWheel(Shift, -WheelDelta*Mouse.WheelScrollLines div 120);
-    Result := True;
+  {$ENDIF}
+  {$IF LCL_FULLVERSION >= 1080000}
+      GridMouseWheel(Shift, WheelDelta*VisibleRowCount div 120)
+    else
+      GridMouseWheel(Shift, -WheelDelta div 120);
+  {$ENDIF}
+      Result := True;
   end;
 end;
 
@@ -1325,7 +1333,7 @@ var
       end;
       if ClickCellPushed and (aCol=PushedCell.x) and (aRow=PushedCell.y) then begin
         Include(gds, gdPushed);
-       end;
+      end;
     end;
 {$ifdef LCLgtk2}
     Rgn := CreateRectRgn(R.Left, R.Top, R.Right, R.Bottom);
@@ -1341,6 +1349,7 @@ var
   end;
 
 begin
+  Rs := false;
   // Upper and Lower bounds for this row
   R.Left:=0;
   ColRowToOffSet(False, True, aRow, R.Top, R.Bottom);
@@ -1389,7 +1398,7 @@ begin
 
     // Draw the focus Rect
     if FocusRectVisible and (ARow=inherited Row) and
-       ((Rs and (ARow>=Top) and (ARow<=Bottom)) or IsCellVisible(Col,ARow))
+      ((Rs and (ARow>=Top) and (ARow<=Bottom)) or IsCellVisible(Col,ARow))
     then begin
       if EditorMode then begin
       //if EditorAlwaysShown and (FEditor<>nil) and FEditor.Visible then begin
@@ -1414,7 +1423,7 @@ begin
   if ARow >= FixedRows then begin
     v:=Items[dc, ARow - FixedRows];
     if not VarIsNull(v) and not VarIsEmpty(v) then
-      Result:=UTF8Encode(WideString(v)); 
+      Result:=UTF8Encode(WideString(v));
   end;
 end;
 

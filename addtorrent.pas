@@ -1,6 +1,6 @@
 {*************************************************************************************
   This file is part of Transmission Remote GUI.
-  Copyright (c) 2008-2014 by Yury Sidorov.
+  Copyright (c) 2008-2019 by Yury Sidorov and Transmission Remote GUI working group.
 
   Transmission Remote GUI is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -24,8 +24,9 @@ unit AddTorrent;
 interface
 
 uses
-  Classes, SysUtils, FileUtil, LResources, Forms, Controls, Graphics, Dialogs, StdCtrls, Spin, VarGrid, Grids,
-  ButtonPanel, ExtCtrls, BaseForm, varlist, fpjson, StrUtils,DateUtils,LazUTF8;
+  Classes, SysUtils, FileUtil, LResources, Forms, Controls, Graphics, Dialogs,
+  StdCtrls, Spin, VarGrid, Grids, ButtonPanel, ExtCtrls, Buttons, BaseForm,
+  varlist, fpjson, StrUtils, DateUtils, LazUTF8;
 
 resourcestring
   SSize = 'Size';
@@ -38,6 +39,7 @@ type
   { TAddTorrentForm }
 
   TAddTorrentForm = class(TBaseForm)
+    DelButton: TBitBtn;
     btSelectAll: TButton;
     btSelectNone: TButton;
     btBrowse: TButton;
@@ -61,6 +63,8 @@ type
     procedure btSelectAllClick(Sender: TObject);
     procedure btSelectNoneClick(Sender: TObject);
     procedure cbDestFolderChange(Sender: TObject);
+    procedure cbStartTorrentChange(Sender: TObject);
+    procedure DelButtonClick(Sender: TObject);
     procedure DiskSpaceTimerTimer(Sender: TObject);
     procedure edSaveAsChange(Sender: TObject);
     procedure FormCreate(Sender: TObject);
@@ -230,9 +234,15 @@ procedure TFilesTree.FillTree(ATorrentId: integer; files, priorities, wanted: TJ
     s, ss: string;
     j: integer;
     p: PChar;
+    ww: widestring;
   begin
     while idx < cnt do begin
-      s:=ExtractFilePath(UTF8Encode(widestring(list[idxFileFullPath, idx])));
+
+      ww := widestring(list[idxFileFullPath, idx]);
+
+      s  := StringReplace(UTF8Encode(ww), ':', '_', [rfReplaceAll, rfIgnoreCase]);
+      s  := ExtractFilePath(s); // fixed an incorrect search if there is a ":"
+
       if s = '' then begin
         Inc(idx);
         continue;
@@ -291,9 +301,10 @@ begin
 
     // Detecting top level folder to be removed
     FCommonPathLen:=0;
-     path:='';
+    path:='';
     if files.Count > 0 then begin
       s:=UTF8Encode(files.Objects[0].Strings['name']);
+      s:=ExcludeInvalidChar(s); // petrov - Exclude prohibited characters
       FCommonPathLen:=Pos(RemotePathDelimiter, s);
       if FCommonPathLen > 0 then
         path:=Copy(s, 1, FCommonPathLen);
@@ -315,6 +326,8 @@ begin
       FFiles[idxFileId, row]:=i;
 
       s:=UTF8Encode(f.Strings['name']);
+      s:=ExcludeInvalidChar(s); // petrov - Exclude prohibited characters
+
       FFiles[idxFileFullPath, row]:=UTF8Decode(ExtractFilePath(s));
       if FCommonPathLen > 0 then
         s:=Copy(s, FCommonPathLen + 1, MaxInt);
@@ -430,7 +443,7 @@ begin
   end
   else
     Result:='';
-     Result:=Result + UTF8Encode(widestring(FFiles[idxFileFullPath, ARow]));
+    Result:=Result + UTF8Encode(widestring(FFiles[idxFileFullPath, ARow]));
 
   if IsFolder(ARow) then
       Result:=Copy(Result, 1, Length(Result) - 1)
@@ -858,9 +871,9 @@ begin
   Result:= path;
   l_old := length(path);
   if l_old >= 1 then begin
-     if path[l_old]='/' then
+    if path[l_old]='/' then
         path := MidStr(path,1,l_old-1);
-     Result:= path;
+    Result:= path;
   end;
 end;
 
@@ -874,24 +887,24 @@ begin
 
     try
       while (cbDestFolder.Items.Count+maxdel) > max do begin
-         min := 9999999;
-         indx:=-1;
-         for i:=0 to cbDestFolder.Items.Count - 1 do begin
-           pFD := cbDestFolder.Items.Objects[i] as FolderData;
+        min := 9999999;
+        indx:=-1;
+        for i:=0 to cbDestFolder.Items.Count - 1 do begin
+          pFD := cbDestFolder.Items.Objects[i] as FolderData;
 
-           fldr := DaysBetween(SysUtils.Date,pFD.Lst);
-           if SysUtils.Date > pFD.Lst then
-             fldr := 0- fldr;
+          fldr := DaysBetween(SysUtils.Date,pFD.Lst);
+          if SysUtils.Date > pFD.Lst then
+            fldr := 0- fldr;
 
-           fldr := fldr + pFD.Hit;
-           if fldr < min then begin
-             min := fldr;
-             indx:= i;
-           end;
-         end;
+          fldr := fldr + pFD.Hit;
+          if fldr < min then begin
+            min := fldr;
+            indx:= i;
+          end;
+        end;
 
-         if indx > -1 then
-           cbDestFolder.Items.Delete(indx);
+        if indx > -1 then
+          cbDestFolder.Items.Delete(indx);
       end;
     except
       MessageDlg('Error: LS-001. Please contact the developer', mtError, [mbOK], 0);
@@ -910,30 +923,34 @@ begin
   i := cbDestFolder.Items.IndexOf(s);
   try
     if i < 0 then begin
-       DeleteDirs (1);               // prepare for new item
-       cbDestFolder.Items.Insert (0, s);
-       i:=cbDestFolder.Items.IndexOf(s);
-       pFD    := FolderData.create;
-       pFD.Hit:= 1;
-       pFD.Ext:= e;
-       pFD.Txt:= s;
-       pFD.Lst:= SysUtils.Date;
-       cbDestFolder.Items.Objects[i]:= pFD;
+      DeleteDirs (1);               // prepare for new item
+      cbDestFolder.Items.Add (s);
+      i:=cbDestFolder.Items.IndexOf(s);
+      pFD    := FolderData.create;
+      pFD.Hit:= 1;
+      pFD.Ext:= e;
+      pFD.Txt:= s;
+      pFD.Lst:= SysUtils.Date;
+      cbDestFolder.Items.Objects[i]:= pFD;
     end else begin
-       pFD    := cbDestFolder.Items.Objects[i] as FolderData;
-       pFD.Hit:= pFD.Hit + 1;
-       pFD.Ext:= e;
-       pFD.Txt:= s;
-       pFD.Lst:= SysUtils.Date;
-       cbDestFolder.Items.Objects[i]:= pFD;
-       DeleteDirs (0);               // check count items
+      pFD    := cbDestFolder.Items.Objects[i] as FolderData;
+      pFD.Hit:= pFD.Hit + 1;
+      pFD.Ext:= e;
+      pFD.Txt:= s;
+      pFD.Lst:= SysUtils.Date;
+      cbDestFolder.Items.Objects[i]:= pFD;
+      DeleteDirs (0);               // check count items
     end;
   except
     MessageDlg('Error: LS-002. Please contact the developer', mtError, [mbOK], 0);
   end;
 
+  // petrov - Exclude prohibited characters
+  edSaveAs.Text := ExcludeInvalidChar(edSaveAs.Text);
+
   if edSaveAs.Enabled then begin
     edSaveAs.Text:=Trim(edSaveAs.Text);
+
     if edSaveAs.Text = '' then begin
       edSaveAs.SetFocus;
       MessageDlg(SInvalidName, mtError, [mbOK], 0);
@@ -1001,6 +1018,34 @@ begin
     edExtension.Text:= pFD.Ext;
   end;
   DiskSpaceTimer.Enabled:=True;
+end;
+
+procedure TAddTorrentForm.cbStartTorrentChange(Sender: TObject);
+begin
+    Ini.WriteBool('Interface', 'StartTorrentOnAdd', cbStartTorrent.Checked);
+    if (cbStartTorrent.Checked = false) then begin
+      cbStartTorrent.Font.Style:= [fsbold];
+      Buttons.OKButton.Font.Style:= [fsbold]
+    end
+    else begin
+      cbStartTorrent.Font.Style:= [];
+      Buttons.OKButton.Font.Style:= []
+    end;
+end;
+
+procedure TAddTorrentForm.DelButtonClick(Sender: TObject);
+var
+  i: integer;
+  s : string;
+begin
+    if cbDestFolder.Items.Count > 1 then begin
+        s := CorrectPath(cbDestFolder.Text);
+        i := cbDestFolder.Items.IndexOf(s);
+        if i > -1 then begin
+              cbDestFolder.Items.Delete(i);
+              cbDestFolder.ItemIndex:=0;
+        end;
+    end;
 end;
 
 procedure TAddTorrentForm.DiskSpaceTimerTimer(Sender: TObject);
@@ -1115,7 +1160,7 @@ begin
           if k <> 0 then begin
             tmp_Name    := Copy (tmp_Name, k+n, 999);
             if ((tmpExt ='') and (re=true)) and (tmp_Name <> '') then begin
-               continue;
+              continue;
             end else begin
               total_sstr := total_sstr +1;
               ok         := true;
@@ -1201,6 +1246,16 @@ begin
   FTree.OnStateChange:=@TreeStateChanged;
   Buttons.OKButton.ModalResult:=mrNone;
   bidiMode := GetBiDi();
+  cbStartTorrent.Checked := Ini.ReadBool('Interface', 'StartTorrentOnAdd', true);
+  if (cbStartTorrent.Checked = false) then begin
+    cbStartTorrent.Font.Style:= [fsbold];
+    Buttons.OKButton.Font.Style:= [fsbold]
+  end
+  else begin
+    cbStartTorrent.Font.Style:= [];
+    Buttons.OKButton.Font.Style:= []
+  end;
+
 {$ifdef windows}
   gbSaveAs.Caption:='';
 {$endif windows}

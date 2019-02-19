@@ -1,6 +1,6 @@
 {*************************************************************************************
   This file is part of Transmission Remote GUI.
-  Copyright (c) 2008-2014 by Yury Sidorov.
+  Copyright (c) 2008-2019 by Yury Sidorov and Transmission Remote GUI working group.
 
   Transmission Remote GUI is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -23,13 +23,20 @@ unit Main;
 interface
 
 uses
-  Classes, SysUtils, FileUtil, zstream, LResources, Forms, Controls, Graphics, Dialogs, ComCtrls, Menus, ActnList,
+  Classes, SysUtils, FileUtil, zstream, LResources, Forms, Controls,
+  {$ifdef windows}
+  windows, ShellApi,
+  {$else}
+  lclintf,
+  {$endif windows}
+  Graphics, Dialogs, ComCtrls, Menus, ActnList, LCLVersion,
   httpsend, StdCtrls, fpjson, jsonparser, ExtCtrls, rpc, syncobjs, variants, varlist, IpResolver,
-  zipper, ResTranslator, VarGrid, StrUtils, LCLProc, Grids, BaseForm, utils, AddTorrent, Types, LazFileUtils, LazUTF8;
+  zipper, ResTranslator, VarGrid, StrUtils, LCLProc, Grids, BaseForm, utils, AddTorrent, Types,
+  LazFileUtils, LazUTF8, StringToVK, passwcon, GContnrs,lineinfo;
 
 const
   AppName = 'Transmission Remote GUI';
-  AppVersion = '5.5.2';
+  AppVersion = '5.16.0';
 
 resourcestring
   sAll = 'All torrents';
@@ -61,6 +68,8 @@ resourcestring
   sMins = '%dm';
   sHours = '%dh';
   sDays = '%dd';
+  sMonths = '%dmo';
+  sYears  = '%dy';
   sDownloadingSeeding = '%s%s%d downloading, %d seeding%s%s, %s';
   sDownSpeed = 'D: %s/s';
   sUpSpeed = 'U: %s/s';
@@ -113,8 +122,31 @@ resourcestring
   SUploaded = 'Uploaded';
   SFilesAdded = 'Files added';
   SActiveTime = 'Active time';
+  STotalSize = 'Total: %s';
+  sTotalSizeToDownload = 'Selected: %s';
+  sTotalDownloaded = 'Done: %s';
+  sTotalRemain = 'Remaining: %s';
+
+  sUserMenu = 'User Menu';
+
+  sBiDiDefault = 'Default';
+  sBiDiLeftRight = 'Left->Right';
+  sBiDiRightLeft = 'Right->Left';
+  sBiDiRightLeftNoAlign = 'Right->Left (No Align)';
+  sBiDiRightLeftReadOnly = 'Right->Left (Reading Only)';
+
+  sPrivateOn = 'ON';
+  sPrivateOff = 'OFF';
 
 type
+
+  { TMyHashMap example from hashmapdemo }
+  TMyHashMap = class(specialize TGenHashMap<Integer, Integer>)
+    function DefaultHashKey(const Key: Integer): Integer; override;
+    function DefaultKeysEqual(const A, B: Integer): Boolean; override;
+    function DefaultKeyToString(const Key: Integer): String; override;
+    function DefaultItemToString(const Item: Integer): String; override;
+  end;
 
   // for torrent folder
   FolderData = class
@@ -208,10 +240,18 @@ type
     acFolderGrouping: TAction;
     acAdvEditTrackers: TAction;
     acFilterPane: TAction;
+    acMenuShow :  TAction;
+    acBigToolbar: TAction;
+    ImageList32: TImageList;
+    MenuItem103: TMenuItem;
+    MenuShow: TAction;
+    ActionList1: TActionList;
+    acToolbarShow :  TAction;
     acInfoPane: TAction;
     acStatusBar: TAction;
     acCopyPath: TAction;
     acRename: TAction;
+    acStatusBarSizes: TAction;
     acTrackerGrouping: TAction;
     acUpdateBlocklist: TAction;
     acUpdateGeoIP: TAction;
@@ -219,9 +259,15 @@ type
     acVerifyTorrent: TAction;
     ActionList: TActionList;
     ApplicationProperties: TApplicationProperties;
+    MenuItem501: TMenuItem;
+    MenuItem502: TMenuItem;
+    SearchToolbar: TToolBar;
+    tbSearchCancel: TToolButton;
+    LocalWatchTimer: TTimer;
     txMagLabel: TLabel;
     txMagnetLink: TEdit;
     MenuItem101: TMenuItem;
+    MenuItem102: TMenuItem;
     edSearch: TEdit;
     imgSearch: TImage;
     imgFlags: TImageList;
@@ -480,6 +526,7 @@ type
     procedure acAddTrackerExecute(Sender: TObject);
     procedure acAdvEditTrackersExecute(Sender: TObject);
     procedure acAltSpeedExecute(Sender: TObject);
+    procedure acBigToolbarExecute(Sender: TObject);
     procedure acCheckNewVersionExecute(Sender: TObject);
     procedure acConnectExecute(Sender: TObject);
     procedure acConnOptionsExecute(Sender: TObject);
@@ -491,6 +538,7 @@ type
     procedure acForceStartTorrentExecute(Sender: TObject);
     procedure acHideAppExecute(Sender: TObject);
     procedure acInfoPaneExecute(Sender: TObject);
+    procedure acMenuShowExecute(Sender: TObject);
     procedure acMoveTorrentExecute(Sender: TObject);
     procedure acNewConnectionExecute(Sender: TObject);
     procedure acOpenContainingFolderExecute(Sender: TObject);
@@ -522,8 +570,18 @@ type
     procedure acStartAllTorrentsExecute(Sender: TObject);
     procedure acStartTorrentExecute(Sender: TObject);
     procedure acStatusBarExecute(Sender: TObject);
+    procedure acStatusBarSizesExecute(Sender: TObject);
     procedure acStopAllTorrentsExecute(Sender: TObject);
     procedure acStopTorrentExecute(Sender: TObject);
+    procedure gTorrentsMouseMove(Sender: TObject; Shift: TShiftState; X,
+      Y: Integer);
+    procedure gTorrentsMouseUp(Sender: TObject; Button: TMouseButton;
+      Shift: TShiftState; X, Y: Integer);
+    procedure LocalWatchTimerTimer(Sender: TObject);
+    procedure lvFilesMouseUp(Sender: TObject; Button: TMouseButton;
+      Shift: TShiftState; X, Y: Integer);
+    procedure MenuShowExecute(Sender: TObject);
+    procedure acToolbarShowExecute(Sender: TObject);
     procedure acTorrentPropsExecute(Sender: TObject);
     procedure acTrackerGroupingExecute(Sender: TObject);
     procedure acUpdateBlocklistExecute(Sender: TObject);
@@ -535,8 +593,10 @@ type
     procedure ApplicationPropertiesMinimize(Sender: TObject);
     procedure ApplicationPropertiesRestore(Sender: TObject);
     procedure edSearchChange(Sender: TObject);
+    procedure edSearchKeyDown(Sender: TObject; var Key: Word; Shift: TShiftState );
     procedure FormActivate(Sender: TObject);
     procedure FormDropFiles(Sender: TObject; const FileNames: array of String);
+    procedure FormKeyDown(Sender: TObject; var Key: Word; Shift: TShiftState);
     procedure FormWindowStateChange(Sender: TObject);
     procedure gTorrentsCellAttributes(Sender: TVarGrid; ACol, ARow, ADataCol: integer; AState: TGridDrawState; var CellAttribs: TCellAttributes);
     procedure gTorrentsClick(Sender: TObject);
@@ -561,8 +621,7 @@ type
     procedure lvTrackersDblClick(Sender: TObject);
     procedure lvTrackersKeyDown(Sender: TObject; var Key: Word; Shift: TShiftState);
     procedure goDevelopmentSiteClick(Sender: TObject);
-    procedure MainToolBarContextPopup(Sender: TObject; MousePos: TPoint;
-      var Handled: Boolean);
+    procedure MainToolBarContextPopup(Sender: TObject; MousePos: TPoint; var Handled: Boolean);
     procedure MenuItem101Click(Sender: TObject);
     procedure miHomePageClick(Sender: TObject);
     procedure PageInfoResize(Sender: TObject);
@@ -580,6 +639,7 @@ type
     procedure miAboutClick(Sender: TObject);
     procedure miCopyLabelClick(Sender: TObject);
     procedure PageInfoChange(Sender: TObject);
+    procedure tbSearchCancelClick(Sender: TObject);
     procedure TorrentsListTimerTimer(Sender: TObject);
     procedure pmFilesPopup(Sender: TObject);
     procedure pmTorrentsPopup(Sender: TObject);
@@ -610,6 +670,21 @@ type
     FPendingTorrents: TStringList;
     FLinksFromClipboard: boolean;
     FLastClipboardLink: string;
+    FLinuxOpenDoc: integer; // no del!
+    FFromNow: boolean;
+    FWatchLocalFolder: string;
+    FWatchDestinationFolder: string;
+    FWatchDownloading: boolean;
+    FRow: integer;
+    FCol: integer;
+{$ifdef windows}
+    FFileManagerDefault: string;
+    FFileManagerDefaultParam: string;
+    FGlobalHotkey: string;
+    fGlobalHotkeyMod: string;
+    FUserDefinedMenuEx: string;
+    FUserDefinedMenuParam: string;
+{$endif windows}
 {$ifdef LCLcarbon}
     FFormActive: boolean;
 {$endif LCLcarbon}
@@ -621,6 +696,7 @@ type
     FFilesCapt: string;
     FCalcAvg: boolean;
     FPasswords: TStringList;
+    FAppProps:TApplicationProperties;
 
     procedure UpdateUI;
     procedure UpdateUIRpcVersion(RpcVersion: integer);
@@ -650,7 +726,7 @@ type
     function GetSeedsText(Seeds, SeedsTotal: integer): string;
     function GetPeersText(Peers, PeersTotal, Leechers: integer): string;
     function RatioToString(Ratio: double): string;
-    function TorrentDateTimeToString(d: Int64): string;
+    function TorrentDateTimeToString(d: Int64; FromNow:Boolean = false): string;
     procedure DoRefresh(All: boolean = False);
     function GetFilesCommonPath(files: TJSONArray): string;
     procedure InternalRemoveTorrent(const Msg, MsgMulti: string; RemoveLocalData: boolean);
@@ -658,11 +734,12 @@ type
     procedure UrlLabelClick(Sender: TObject);
     procedure CenterReconnectWindow;
     procedure ProcessPieces(const Pieces: string; PieceCount: integer; const Done: double);
-    function ExecRemoteFile(const FileName: string; SelectFile: boolean): boolean;
+    function ExecRemoteFile(const FileName: string; SelectFile: boolean; Userdef: boolean= false): boolean;
     function GetSelectedTorrents: variant;
+    function GetDisplayedTorrents: variant;
     procedure FillDownloadDirs(CB: TComboBox; const CurFolderParam: string);
     procedure SaveDownloadDirs(CB: TComboBox; const CurFolderParam: string);
-    procedure DeleteDirs(CB: TComboBox; maxdel : Integer);          // PETROV
+    procedure DeleteDirs(CB: TComboBox; maxdel : Integer);
     procedure SetRefreshInterval;
     procedure AddTracker(EditMode: boolean);
     procedure UpdateConnections;
@@ -676,12 +753,13 @@ type
     procedure CheckAddTorrents;
     procedure CheckClipboardLink;
     procedure CenterDetailsWait;
+    procedure ReadLocalFolderWatch;
     function GetPageInfoType(pg: TTabSheet): TAdvInfoType;
     procedure DetailsUpdated;
     function RenameTorrent(TorrentId: integer; const OldPath, NewName: string): boolean;
     procedure FilesTreeStateChanged(Sender: TObject);
     function SelectTorrent(TorrentId, TimeOut: integer): integer;
-    procedure OpenCurrentTorrent(OpenFolderOnly: boolean);
+    procedure OpenCurrentTorrent(OpenFolderOnly: boolean; UserDef: boolean=false);
   public
     procedure FillTorrentsList(list: TJSONArray);
     procedure FillPeersList(list: TJSONArray);
@@ -698,9 +776,13 @@ type
     procedure ClearDetailsInfo(Skip: TAdvInfoType = aiNone);
     function SelectRemoteFolder(const CurFolder, DialogTitle: string): string;
     procedure ConnectionSettingsChanged(const ActiveConnection: string; ForceReconnect: boolean);
-  end;
+    procedure StatusBarSizes;
+private
+    procedure _onException(Sender: TObject; E: Exception);
+end;
 
-function GetBiDi: TBiDiMode; 
+function ExcludeInvalidChar (path: string): string; // PETROV
+function GetBiDi: TBiDiMode;
 function CheckAppParams: boolean;
 procedure LoadTranslation;
 function GetHumanSize(sz: double; RoundTo: integer = 0; const EmptyStr: string = '-'): string;
@@ -716,6 +798,10 @@ var
   IsUnity: boolean;
   Ini: TIniFileUtf8;
   FHomeDir: string;
+  {$ifdef windows}
+  PrevWndProc: windows.WNDPROC;
+  HotKeyID: Integer;
+  {$endif windows}
 
 const
   // Torrents list
@@ -743,6 +829,7 @@ const
   idxQueuePos = 21;
   idxSeedingTime = 22;
   idxSizeLeft = 23;
+  idxPrivate = 24;
 
   idxTag = -1;
   idxSeedsTotal = -2;
@@ -784,6 +871,7 @@ const
   fltInactive = 4;
   fltStopped  = 5;
   fltError  = 6;
+  fltWaiting = 7;
 
   // Status images
   imgDown      = 9;
@@ -797,14 +885,16 @@ const
   imgSeedQueue = 17;
   imgAll       = 19;
   imgActive    = 20;
+  imgInactive  = 15;
+  imgWaiting   = 42;
 
-  StatusFiltersCount = 7;
+  StatusFiltersCount = 8;
 
-  TorrentFieldsMap: array[idxName..idxSizeLeft] of string =
+  TorrentFieldsMap: array[idxName..idxPrivate] of string =
     ('', 'totalSize', '', 'status', 'peersSendingToUs,seeders',
-     'peersGettingFromUs,leechers', '', '', 'eta', 'uploadRatio',
-     'downloadedEver', 'uploadedEver', '', '', 'addedDate', 'doneDate', 'activityDate', '', 'bandwidthPriority',
-     '', '', 'queuePosition', 'secondsSeeding', 'leftUntilDone');
+    'peersGettingFromUs,leechers', '', '', 'eta', 'uploadRatio',
+    'downloadedEver', 'uploadedEver', '', '', 'addedDate', 'doneDate', 'activityDate', '', 'bandwidthPriority',
+    '', '', 'queuePosition', 'secondsSeeding', 'leftUntilDone', 'isPrivate');
 
   FinishedQueue = 1000000;
 
@@ -824,7 +914,30 @@ uses
 {$endif darwin}
   synacode, ConnOptions, clipbrd, DateUtils, TorrProps, DaemonOptions, About,
   ToolWin, download, ColSetup, AddLink, MoveTorrent, ssl_openssl_lib, AddTracker, lcltype,
-  Options, ButtonPanel, BEncode, synautil;
+  Options, ButtonPanel, BEncode, synautil, Math;
+
+  {TMyHashMap}
+  function TMyHashMap.DefaultHashKey(const Key: Integer): Integer;
+  begin
+    Result := Key;
+    if Odd(Result) then
+      Result := Result * 3;
+    end;
+
+  function TMyHashMap.DefaultKeysEqual(const A, B: Integer): Boolean;
+  begin
+    Result := A = B;
+  end;
+
+  function TMyHashMap.DefaultKeyToString(const Key: Integer): String;
+  begin
+    WriteStr(Result, Key);
+  end;
+
+  function TMyHashMap.DefaultItemToString(const Item: Integer): String;
+  begin
+    WriteStr(Result, Item);
+  end;
 
 const
   TR_STATUS_CHECK_WAIT_1   = ( 1 shl 0 ); // Waiting in queue to check files
@@ -855,6 +968,52 @@ const
 var
   TR_STATUS_STOPPED, TR_STATUS_CHECK_WAIT, TR_STATUS_CHECK, TR_STATUS_DOWNLOAD_WAIT, TR_STATUS_DOWNLOAD, TR_STATUS_SEED_WAIT, TR_STATUS_SEED: integer;
 
+
+  {$ifdef windows}
+function WndCallback(Ahwnd: HWND; uMsg: UINT; wParam: WParam; lParam: LParam):LRESULT; stdcall;
+begin
+  if (uMsg=WM_HOTKEY) and (WParam=HotKeyID) then
+    begin
+      if (MainForm.Visible = false) or (MainForm.WindowState = wsMinimized) then
+          MainForm.ShowApp
+          else
+          MainForm.HideApp;
+    end;
+  result:=CallWindowProc(PrevWndProc,Ahwnd, uMsg, WParam, LParam);
+end;
+
+  {$endif windows}
+
+function IsHash(Hash: String): boolean;
+var i: integer;
+begin
+      Result := false;
+      if Hash = '' then exit;
+      if Length(Hash) = 32 then   // possible base32 encoded hash
+                      try
+                        Hash:=StrToHex(Base32Decode(UpperCase(Hash)));
+                      except
+                        exit;
+                      end;
+    if Length(Hash) <> 40 then exit;
+    Result := true;
+    for i := 1 to 40 do if not (Hash[i] in ['a' .. 'f', 'A'..'F', '0'..'9']) then Result := false;
+end;
+
+procedure TMainForm.ReadLocalFolderWatch;
+var
+  sr: TSearchRec;
+begin
+    if FPendingTorrents.Count = 0 then
+      begin
+            if FindFirstUTF8(FWatchLocalFolder+'*.torrent',faAnyFile,sr)=0 then
+              repeat
+                    FPendingTorrents.Add(FWatchLocalFolder+sr.Name);
+              until FindNextUTF8(sr)<>0;
+            FindCloseUTF8(sr);
+      end;
+end;
+
 function GetHumanSize(sz: double; RoundTo: integer; const EmptyStr: string): string;
 var
   i: integer;
@@ -883,19 +1042,19 @@ function AddToChannel(Clr: TColor; Value: integer; Position: byte): TColor;
 var i: integer;
 
 begin
-     i:=(Clr shr (Position*8)) and $FF;
-     i:=i + Value;
-     if i < 0 then i:=0;
-     if i > $FF then i:=$FF;
-     Result:=Clr and (not (Cardinal($FF) shl (Position*8))) or (Cardinal(i) shl (Position*8));
+    i:=(Clr shr (Position*8)) and $FF;
+    i:=i + Value;
+    if i < 0 then i:=0;
+    if i > $FF then i:=$FF;
+    Result:=Clr and (not (Cardinal($FF) shl (Position*8))) or (Cardinal(i) shl (Position*8));
 end;
 
 function AddToColor(Color: TColor; R, G, B: integer): TColor;
 begin
-     Result:=ColorToRGB(Color);
-     Result:=AddToChannel(Result, R, 0);
-     Result:=AddToChannel(Result, G, 1);
-     Result:=AddToChannel(Result, B, 2);
+    Result:=ColorToRGB(Color);
+    Result:=AddToChannel(Result, R, 0);
+    Result:=AddToChannel(Result, G, 1);
+    Result:=AddToChannel(Result, B, 2);
 end;
 
 function GetLikeColor(Color: TColor; Delta: integer): TColor;
@@ -936,8 +1095,8 @@ procedure OnTranslate(Sender: TResTranslator; const ResourceName: AnsiString; va
 const
   IgnoreUnits: array[0..12] of string =
       ('fpjson','jsonparser','jsonscanner','lclstrconsts','math',
-       'rtlconsts','sysconst','variants','zbase','zipper','zstream',
-       'xmlcfg', 'registry');
+      'rtlconsts','sysconst','variants','zbase','zipper','zstream',
+      'xmlcfg', 'registry');
 
   IgnoreControls: array[0..3] of string =
     ('AboutForm.txAuthor', 'MainForm.miLn', 'ConnOptionsForm.cbUseSocks5', 'ConnOptionsForm.tabConnection');
@@ -946,8 +1105,8 @@ var
   i: integer;
 begin
   Accept := not AnsiMatchText(Copy2Symb(ResourceName, '.'), IgnoreUnits)
-             or AnsiStartsText('lclstrconsts.rsMb', ResourceName)  //<-- dialog buttons
-             or AnsiStartsText('lclstrconsts.rsMt', ResourceName); //<-- dialog message
+            or AnsiStartsText('lclstrconsts.rsMb', ResourceName)  //<-- dialog buttons
+            or AnsiStartsText('lclstrconsts.rsMt', ResourceName); //<-- dialog message
   if Accept then
     for i:=Low(IgnoreControls) to High(IgnoreControls) do
       if AnsiStartsText(IgnoreControls[i], ResourceName) then begin
@@ -1007,7 +1166,7 @@ end;
 procedure LoadTranslation;
 begin
   if Ini.ReadBool('Translation', 'TranslateForm', True) = False then
-     FTranslationLanguage := 'English'
+    FTranslationLanguage := 'English'
   else begin
   FTranslationFileName := Ini.ReadString('Interface', 'TranslationFile', '');
   if FTranslationFileName <> '-' then
@@ -1048,7 +1207,7 @@ begin
       try
         proc.Executable:=ParamStrUTF8(0);
         for i:=1 to ParamCount do
-		  proc.Parameters.Add(ParamStrUTF8(i));
+      proc.Parameters.Add(ParamStrUTF8(i));
         for i:=0 to GetEnvironmentVariableCount - 1 do
           proc.Environment.Add(GetEnvironmentString(i));
         proc.Environment.Values['LIBOVERLAY_SCROLLBAR']:='0';
@@ -1132,7 +1291,7 @@ begin
 
   LoadTranslation;
 
-  GetBiDi; 
+  GetBiDi;
 
   SizeNames[1]:=sByte;
   SizeNames[2]:=sKByte;
@@ -1320,8 +1479,11 @@ var
   ws: TWindowState;
   i, j: integer;
   R: TRect;
-  bigt: boolean;
-
+  SL: TStringList;
+  MI, MI2: TMenuItem;
+  Ico: TIcon;
+  LargeIco, SmallIco : hIcon;
+  MenuCaption: String;
 {$ifdef darwin}
   s: string;
   pic: TPicture;
@@ -1330,7 +1492,7 @@ begin
 {$ifdef darwin}
   // Load better icon if possible
   s:=ExtractFilePath(ParamStrUTF8(0)) + '..' + DirectorySeparator + 'Resources'
-     + DirectorySeparator + ChangeFileExt(ExtractFileName(ParamStrUTF8(0)), '.icns');
+    + DirectorySeparator + ChangeFileExt(ExtractFileName(ParamStrUTF8(0)), '.icns');
   if FileExistsUTF8(s) then begin
     pic:=TPicture.Create;
     try
@@ -1346,7 +1508,17 @@ begin
 
   RegisterURLHandler(@AddTorrentFile);
 {$endif darwin}
-  Application.Title:=AppName;
+
+
+  {$if FPC_FULlVERSION>=30101}
+  AllowReuseOfLineInfoData:=false;
+  {$endif}
+  FAppProps := TApplicationProperties.Create(Self);
+  FAppProps.OnException := @_onException;
+  FAppProps.CaptureExceptions := True;
+
+
+  Application.Title:=AppName + ' v' + AppVersion;
   Caption:=Application.Title;
   txTransferHeader.Font.Size:=Font.Size + 2;
   txTorrentHeader.Font.Size:=txTransferHeader.Font.Size;
@@ -1385,17 +1557,6 @@ begin
     Left:=MainToolBar.ClientWidth;
     Parent:=MainToolBar;
   end;
-
-  bigt := Ini.ReadBool('MainForm', 'BigToolbar', False);
-  Ini.WriteBool('MainForm', 'BigToolbar', bigt);
-  if (bigt = True) then begin
-    MainToolBar.ButtonWidth:= 64;      
-    MainToolBar.ButtonHeight:=64
-  end else begin
-    MainToolBar.ButtonWidth:= 23; 
-    MainToolBar.ButtonHeight:=23;
-  end;
-
 
   FDetailsWait:=TProgressImage.Create(panDetailsWait);
   with FDetailsWait do begin
@@ -1480,7 +1641,26 @@ begin
     acInfoPane.Execute;
   if Ini.ReadBool('MainForm', 'StatusBar', acStatusBar.Checked) <> acStatusBar.Checked then
     acStatusBar.Execute;
+  if Ini.ReadBool('MainForm', 'StatusBarSizes', acStatusBarSizes.Checked) <> acStatusBarSizes.Checked then
+    acStatusBarSizes.Execute;
 
+  if Ini.ReadBool('MainForm', 'Menu', acMenuShow.Checked) <> acMenuShow.Checked then
+    acMenuShow.Execute;
+  if Ini.ReadBool('MainForm', 'Toolbar', acToolbarShow.Checked) <> acToolbarShow.Checked then
+    acToolbarShow.Execute;
+  if Ini.ReadBool('MainForm', 'BigToolbar', acBigToolBar.Checked)  <> acBigToolBar.Checked then
+    acBigToolbar.Execute;
+
+  FFromNow := Ini.ReadBool('MainForm','FromNow',false);
+  FWatchLocalFolder := Ini.ReadString('Interface','WatchLocalFolder','');
+  if FWatchLocalFolder  <> '' then
+          if DirPathExists(FWatchLocalFolder) and DirectoryIsWritable(FWatchLocalFolder) then
+            begin
+                FWatchLocalFolder := AppendPathDelim(FWatchLocalFolder);
+                FWatchDestinationFolder := Ini.ReadString('Interface','WatchDestinationFolder','');
+                LocalWatchTimer.Interval:=trunc(Ini.ReadFloat('Interface','WatchInterval',1)*60000);
+                LocalWatchTimer.Enabled := true;
+            end;
   LoadColumns(gTorrents, 'TorrentsList');
   TorrentColumnsChanged;
   LoadColumns(lvFiles, 'FilesList');
@@ -1506,14 +1686,123 @@ begin
   if i >= 0 then
     UpdateUIRpcVersion(i);
 
-  bidiMode := GetBiDi; 
+  bidiMode := GetBiDi;
 
   acFolderGrouping.Checked:=Ini.ReadBool('Interface', 'FolderGrouping', True);
   acTrackerGrouping.Checked:=Ini.ReadBool('Interface', 'TrackerGrouping', True);
   FLinksFromClipboard:=Ini.ReadBool('Interface', 'LinksFromClipboard', True);
-
   Application.OnActivate:=@FormActivate;
   Application.OnException:=@ApplicationPropertiesException;
+
+  {$ifdef windows}
+  FFileManagerDefault:=Ini.ReadString('Interface','FileManagerDefault','explorer.exe');
+  FFileManagerDefaultParam:=Ini.ReadString('Interface', 'FileManagerDefaultParam', '/select,"%s"');
+  FGlobalHotkey:=Ini.ReadString('Interface','GlobalHotkey','');
+  FGlobalHotkeyMod:=Ini.ReadString('Interface','GlobalHotkeyMod','0');
+  HotKeyID := GlobalAddAtom('TransGUIHotkey');
+  PrevWndProc:=windows.WNDPROC(SetWindowLongPtr(Self.Handle,GWL_WNDPROC,PtrInt(@WndCallback)));
+  RegisterHotKey(Self.Handle,HotKeyID, VKStringToWord(FGlobalHotkeyMod), VKStringToWord(FGlobalHotkey));
+  // Create UserMenus if any in [UserMenu]
+      j:= 1;
+      repeat
+            MenuCaption := Ini.ReadString('UserMenu','Caption'+IntToStr(j),'nocaption');
+            inc(J);
+      until MenuCaption = 'nocaption';
+      dec(j);
+      if j > 0 then
+        begin
+          if J > 2 then
+            begin
+                  MI := TMenuItem.Create(Self);
+                  MI.Caption:= sUserMenu;
+                  MI.ImageIndex:=6;
+                  pmFiles.Items.Insert(4,MI);
+                  MI2 := TMenuItem.Create(Self);
+                  MI2.Caption:= sUserMenu;
+                  MI2.ImageIndex:=6;
+                  pmTorrents.Items.Insert(2,MI2);
+            end;
+          for i := 1 to j-1 do
+            begin
+                MI := TMenuItem.Create(Self);
+                MI2 := TMenuItem.Create(Self);
+                MI.Caption:= Ini.ReadString('UserMenu','Caption'+IntToStr(i),'');
+                if MI.Caption <> '-' then
+                begin
+                  MI.Tag:= 1000+i;
+                  MI.OnClick:= @acOpenFileExecute;
+                end;
+                try
+                if ExtractIconEx(PChar(Ini.ReadString('UserMenu','ExeName'+IntToStr(i),'')), 0, LargeIco, SmallIco, 1) > null then
+                  begin
+                        Ico := TIcon.Create;
+                        try
+                          Ico.Handle := SmallIco;
+                          Ico.Transparent := True;
+                          Ico.Masked:=True;
+                        finally
+                          ImageList16.AddIcon(Ico);
+                          Ico.Free;
+                          MI.ImageIndex := ImageList16.Count-1;
+                        end;
+                  end;
+                except
+                end;
+                MI2.Caption:= MI.Caption;
+                MI2.Tag:= MI.Tag;
+                MI2.OnClick:=MI.OnClick;
+                MI2.ImageIndex:= MI.ImageIndex;
+                if j > 2 then pmFiles.Items[4].Add(MI)
+                        else pmFiles.Items.Insert(4,MI);
+                if j > 2 then pmTorrents.Items[2].Add(MI2)
+                        else pmTorrents.Items.Insert(2,MI2);
+            end;
+        end;
+  // end Create UserMenu
+  {$else}
+    {$ifdef darwin}
+    FLinuxOpenDoc := Ini.ReadInteger('Interface','FileOpenDoc',0);  // macOS - OpenURL(s, p) = Original version TRGUI
+    {$else}
+    FLinuxOpenDoc := Ini.ReadInteger('Interface','FileOpenDoc',1);
+    {$endif darwin}
+    Ini.WriteInteger('Interface','FileOpenDoc',FLinuxOpenDoc);
+  {$endif windows}
+
+//Dynamic Associations of ShortCuts to Actions/Menus
+  SL := TStringList.Create;
+  try
+    Ini.ReadSectionValues('ShortCuts', SL);
+    if (SL.Text = '') or (SL.Count <> ActionList.ActionCount) then
+      begin
+          for i := 0 to ActionList.ActionCount-1 do
+          Ini.WriteString('Shortcuts',StringReplace(ActionList.Actions[i].Name,'ac','',[]),ShortcutToText(TAction(ActionList.Actions[i]).ShortCut));
+          if (i<SL.Count-1) and (SL.Text <> '') and (ActionList.ActionByName(SL.Names[i]) = nil) then Ini.WriteString('Shortcuts',StringReplace(ActionList.Actions[i].Name,'ac','',[]),ShortcutToText(TAction(ActionList.Actions[i]).ShortCut));
+      end
+      else
+        for i := 0 to SL.Count - 1 do
+              try
+                  TAction(ActionList.ActionbyName('ac'+SL.Names[i])).ShortCut := TextToShortcut(SL.ValueFromIndex[i]);
+              except
+              end;
+  finally
+    SL.Free;
+  end;
+  // StatusBar Panels width
+  i := Ini.ReadInteger('StatusBarPanels','ScreenWidth',0);
+  if Screen.Width <> i then
+      begin
+        Ini.EraseSection('StatusBarPanels');
+        Ini.WriteInteger('StatusBarPanels','ScreenWidth',Screen.Width);
+      end;
+  for i := 0 to StatusBar.Panels.Count-1 do
+  begin
+        j := Ini.ReadInteger('StatusBarPanels',IntToStr(i),0);
+        if j <> 0 then StatusBar.Panels[i].Width:=j else
+                  Ini.WriteInteger('StatusBarPanels',IntToStr(i),Statusbar.Panels[i].Width);
+  end;
+  {$IF LCL_FULLVERSION >= 1080000}
+  PageInfo.Options := PageInfo.Options + [nboDoChangeOnSetIndex]
+  {$ENDIF}
 end;
 
 procedure TMainForm.FormDestroy(Sender: TObject);
@@ -1558,6 +1847,11 @@ begin
     Ini.UpdateFile;
   except
   end;
+  {$ifdef windows}
+  UnRegisterHotkey(Self.Handle,HotKeyID);
+  GlobalDeleteAtom(HotKeyID);
+  {$endif windows}
+
 end;
 
 procedure TMainForm.FormResize(Sender: TObject);
@@ -1701,6 +1995,15 @@ begin
     RpcObj.AdvInfo:=aiNone;
 end;
 
+procedure TMainForm.acMenuShowExecute(Sender: TObject);
+begin
+    acMenuShow.Checked:=not acMenuShow.Checked;
+    if acMenuShow.Checked = false then
+      MainForm.Menu := nil
+    else
+      MainForm.Menu := MainMenu;
+end;
+
 procedure TMainForm.acMoveTorrentExecute(Sender: TObject);
 var
   ids: variant;
@@ -1807,16 +2110,26 @@ begin
 end;
 
 procedure TMainForm.acOpenFileExecute(Sender: TObject);
+var UserDef: boolean;
 begin
   if gTorrents.Items.Count = 0 then
     exit;
   Application.ProcessMessages;
+  if (Sender is TMenuItem) and (TMenuItem(Sender).Tag > 999) then
+    begin
+        UserDef := true;
+        {$ifdef windows}
+        FUserDefinedMenuEx    := Ini.ReadString('UserMenu','ExeName'+IntToStr(TMenuItem(Sender).Tag-1000),'');
+        FUserDefinedMenuParam := Ini.ReadString('UserMenu','Params'+IntToStr(TMenuItem(Sender).Tag-1000),'');
+        {$endif windows}
+    end
+      else UserDef := false;
   if lvFiles.Focused then begin
     if lvFiles.Items.Count = 0 then exit;
-    ExecRemoteFile(FFilesTree.GetFullPath(lvFiles.Row), False);
+    ExecRemoteFile(FFilesTree.GetFullPath(lvFiles.Row), False, Userdef)
   end
   else
-    OpenCurrentTorrent(False);
+    OpenCurrentTorrent(False, UserDef);
 end;
 
 procedure TMainForm.acOptionsExecute(Sender: TObject);
@@ -1935,6 +2248,21 @@ begin
   AppNormal;
 end;
 
+procedure TMainForm.acBigToolbarExecute(Sender: TObject);
+begin
+  acBigToolbar.Checked:=not acBigToolbar.Checked;
+  if acBigToolbar.Checked then begin
+    MainToolBar.ButtonWidth:= Ini.ReadInteger('MainForm','BigToolBarHeight',64);
+    MainToolBar.ButtonHeight:= MainToolBar.ButtonWidth;
+    MainToolBar.Images:= ImageList32;
+  end else begin
+    MainToolBar.ButtonWidth:= 23;
+    MainToolBar.ButtonHeight:=23;
+    MainToolBar.Images:= ImageList16;
+    end;
+  Ini.WriteBool('MainForm', 'BigToolbar', acBigToolbar.Checked);
+end;
+
 procedure TMainForm.acCheckNewVersionExecute(Sender: TObject);
 begin
   Application.ProcessMessages;
@@ -1950,7 +2278,10 @@ begin
   try
     AppNormal;
     if ShowModal = mrOk then
-      DoAddTorrent(edLink.Text);
+      begin
+          if isHash(edLink.Text) then edLink.Text := 'magnet:?xt=urn:btih:'+ edLink.Text;
+          DoAddTorrent(edLink.Text);
+      end;
   finally
     Free;
   end;
@@ -2250,7 +2581,14 @@ begin
         if IsProtocolSupported(FileName) then
           torrent:='-'
         else begin
-          fs:=TFileStreamUTF8.Create(FileName, fmOpenRead or fmShareDenyNone);
+          try
+            fs:=TFileStreamUTF8.Create(FileName, fmOpenRead or fmShareDenyNone); // why isnt in try
+          except
+            AppNormal;    // if the clipboard garbage and file cant be created. just go out.
+            HideWaitMsg;
+            exit;
+          end;
+
           try
             SetLength(torrent, fs.Size);
             fs.ReadBuffer(PChar(torrent)^, Length(torrent));
@@ -2262,6 +2600,7 @@ begin
 
         IniSec:='AddTorrent.' + FCurConn;
         FillDownloadDirs(cbDestFolder, 'LastDownloadDir');
+        if (FWatchDownloading) and (FWatchDestinationFolder <> '') then cbDestFolder.Text:=FWatchDestinationFolder;
 
         req:=TJSONObject.Create;
         try
@@ -2279,7 +2618,7 @@ begin
               pFD.Ext:= '';
               pFD.Txt:= s;
               pFD.Lst:= SysUtils.Date;
-              cbDestFolder.Items.Insert(0, s);
+              cbDestFolder.Items.Add(s);
               i := cbDestFolder.Items.IndexOf(s);
               cbDestFolder.Items.Objects[i]:= pFD;
             end;
@@ -2342,6 +2681,8 @@ begin
 
           OldName:=UTF8Encode(t.Objects[0].Strings['name']);
           edSaveAs.Caption:=OldName;
+          edSaveAs.Caption := ExcludeInvalidChar(edSaveAs.Caption); // petrov - Exclude prohibited characters
+
           if RpcObj.RPCVersion < 15 then begin
             edSaveAs.Enabled:=False;
             edSaveAs.ParentColor:=True;
@@ -2368,6 +2709,7 @@ begin
         AppNormal;
 
         ok:=not Ini.ReadBool('Interface', 'ShowAddTorrentWindow', True);
+        if FWatchDownloading then ok:= true;
         if ok then
           btSelectAllClick(nil)
         else begin
@@ -2433,7 +2775,9 @@ begin
             end;
             args.Free;
 
-            edSaveAs.Text:=Trim(edSaveAs.Text);
+//          edSaveAs.Text := Trim(edSaveAs.Text);               // leave spaces to not rename the torrent (see below)
+            edSaveAs.Text := ExcludeInvalidChar(edSaveAs.Text); // Exclude prohibited characters
+
             if OldName <> edSaveAs.Text then begin
               // Changing torrent name
               req.Free;
@@ -2447,8 +2791,8 @@ begin
               args:=nil;
               args:=RpcObj.SendRequest(req, False);
               if args = nil then begin
-                CheckStatus(False);
-                exit;
+                // CheckStatus(False); // failed to rename torrent
+                // exit;               // we continue work (try)
               end;
               args.Free;
             end;
@@ -2462,7 +2806,7 @@ begin
           SelectTorrent(id, 2000);
 
           id:=0;
-          if Ini.ReadBool('Interface', 'DeleteTorrentFile', False) and not IsProtocolSupported(FileName) then
+          if (Ini.ReadBool('Interface', 'DeleteTorrentFile', False) and not IsProtocolSupported(FileName)) or (FWatchDownloading) then
             DeleteFileUTF8(FileName);
 
           Ini.WriteInteger(IniSec, 'PeerLimit', edPeerLimit.Value);
@@ -2485,11 +2829,14 @@ end;
 
 procedure TMainForm.UpdateTray;
 begin
+{$ifndef CPUARM}
   TrayIcon.Visible:=not IsUnity and
-    ( Ini.ReadBool('Interface', 'TrayIconAlways', True)
-      or ( (WindowState = wsMinimized) and Ini.ReadBool('Interface', 'TrayMinimize', True) )
-      or ( not Self.Visible and Ini.ReadBool('Interface', 'TrayClose', False) )
+    (Ini.ReadBool('Interface', 'TrayIconAlways', True)  or
+    ((WindowState = wsMinimized) and Ini.ReadBool('Interface', 'TrayMinimize', True) ) or
+    (not Self.Visible and Ini.ReadBool('Interface', 'TrayClose', False) )
     );
+{$endif CPUARM}
+
 {$ifdef darwin}
   acShowApp.Visible:=False;
   acHideApp.Visible:=False;
@@ -2505,7 +2852,7 @@ procedure TMainForm.HideApp;
 begin
   if WindowState <> wsMinimized then
     Hide;
-   HideTaskbarButton;
+  HideTaskbarButton;
   UpdateTray;
 end;
 
@@ -2529,10 +2876,12 @@ end;
 
 procedure TMainForm.DownloadFinished(const TorrentName: string);
 begin
+{$ifndef CPUARM}
   if not TrayIcon.Visible or not Ini.ReadBool('Interface', 'TrayNotify', True) then exit;
   TrayIcon.BalloonHint:=Format(sFinishedDownload, [TorrentName]);
   TrayIcon.BalloonTitle:=sDownloadComplete;
   TrayIcon.ShowBalloonHint;
+{$endif CPUARM}
 end;
 
 Procedure TMainForm.DoOpenFlagsZip(Sender: TObject; var AStream: TStream);
@@ -2624,6 +2973,10 @@ begin
   Ini.WriteBool('MainForm', 'InfoPane', acInfoPane.Checked);
   Ini.WriteBool('MainForm', 'StatusBar', acStatusBar.Checked);
 
+  Ini.WriteBool('MainForm', 'Menu', acMenuShow.Checked);
+  Ini.WriteBool('MainForm', 'Toolbar', acToolbarShow.Checked);
+
+
   SaveColumns(gTorrents, 'TorrentsList');
   SaveColumns(lvFiles, 'FilesList');
   SaveColumns(lvPeers, 'PeerList');
@@ -2658,7 +3011,7 @@ end;
 
 function TMainForm.DownloadGeoIpDatabase(AUpdate: boolean): boolean;
 const
-  GeoLiteURL = 'http://geolite.maxmind.com/download/geoip/database/GeoLiteCountry/GeoIP.dat.gz';
+  GeoLiteURL = 'https://geolite.maxmind.com/download/geoip/database/GeoLiteCountry/GeoIP.dat.gz';
 var
   tmp: string;
   gz: TGZFileStream;
@@ -2805,12 +3158,45 @@ begin
       Result:=Format('%.3f', [Ratio]);
 end;
 
-function TMainForm.TorrentDateTimeToString(d: Int64): string;
+function HumanReadableTime(ANow,AThen: TDateTime): string;
+var
+  Years, Months, Days, Hours, Minutes, Seconds, Discard: Word;
+begin
+  Try
+    PeriodBetween(ANow,AThen,Years,Months,Days);
+    if Sign(Anow-Athen)*CompareTime(Anow,Athen) < 0 then Dec(Days);
+    DecodeDateTime(Sign(Anow-Athen)*(Anow-AThen),discard,Discard,Discard,Hours,Minutes,Seconds,Discard);
+    if Years > 0 then begin
+      Result := Format(sYears,[Years]) + ' ' + Format(sMonths,[Months]);
+    end else if Months > 0 then begin
+      Result := Format(sMonths,[Months]) + ' ' + Format(sDays,[Days]);
+    end else if Days > 0 then begin
+      Result := Format(sDays,[Days]) + ' ' + Format(sHours,[Hours]);
+    end else if Hours > 0 then begin
+      Result := Format(sHours,[Hours]) + ' ' + Format(sMins,[Minutes]);
+    end else if Minutes > 0 then begin
+      Result := Format(sMins,[Minutes]) + ' ' + Format(sSecs,[Seconds]);
+    end else begin
+      Result := Format(sSecs,[Seconds])
+    end;
+  Except
+    Result := 'An Eternity';
+  End;
+end;
+
+function TMainForm.TorrentDateTimeToString(d: Int64; FromNow: Boolean): string;
+var
+  s: string;
 begin
   if d = 0 then
     Result:=''
-  else
-    Result:=DateTimeToStr(UnixToDateTime(d) + GetTimeZoneDelta);
+  else begin
+    if FromNow then
+      s := HumanReadableTime(Now,UnixToDateTime(d) + GetTimeZoneDelta)
+    else
+      s := DateTimeToStr(UnixToDateTime(d) + GetTimeZoneDelta);
+    Result := s;
+  end;
 end;
 
 procedure TMainForm.DoRefresh(All: boolean);
@@ -2834,32 +3220,32 @@ var
 begin
   SaveDialog1.filename := 'transgui.ini';
   if SaveDialog1.Execute then begin
-     s:=SaveDialog1.filename;
-     d:=Ini.getFileName();
+    s:=SaveDialog1.filename;
+    d:=Ini.getFileName();
 
-     AssignFile(FileVar1, d );
-     AssignFile(FileVar2, s );
+    AssignFile(FileVar1, d );
+    AssignFile(FileVar2, s );
 
-     Reset  (FileVar1);
-     Rewrite(FileVar2);
+    Reset  (FileVar1);
+    Rewrite(FileVar2);
 
-     {$I+} //use exceptions
-     try
+    {$I+} //use exceptions
+    try
 
-     Repeat
-       Readln (FileVar1,s);
-       Writeln(FileVar2,s);
-     Until Eof(FileVar1);
+    Repeat
+      Readln (FileVar1,s);
+      Writeln(FileVar2,s);
+    Until Eof(FileVar1);
 
-     CloseFile(FileVar1);
-     CloseFile(FileVar2);
-     except
-     end;
-     {$I-} //!use exceptions
+    CloseFile(FileVar1);
+    CloseFile(FileVar2);
+    except
+    end;
+    {$I-} //!use exceptions
   end;
 end;
 
-procedure TMainForm.acImportExecute(Sender: TObject); // PETROV
+procedure TMainForm.acImportExecute(Sender: TObject);
 var
   s,d : string;
   FileVar1: TextFile;
@@ -2868,66 +3254,64 @@ var
 begin
   OpenDialog1.filename := 'transgui.ini';
   if OpenDialog1.Execute then begin
-     s:=OpenDialog1.filename;
-     d:=Ini.getFileName();
-     p1:=0;
-     p2:=0;
-     p3:=0;
-     p4:=0;
-     // check valid Ini-file
-     AssignFile(FileVar2, s);
-     Reset     (FileVar2);
-     {$I+} //use exceptions
-     try
-     Repeat
-       Readln (FileVar2,s);
-       P := Pos ('[Hosts]',s);
-       if P>0 then p1 := P;
+    s:=OpenDialog1.filename;
+    d:=Ini.getFileName();
+    p1:=0;
+    p2:=0;
+    p3:=0;
+    p4:=0;
+    // check valid Ini-file
+    AssignFile(FileVar2, s);
+    Reset     (FileVar2);
+    {$I+} //use exceptions
+    try
+    Repeat
+      Readln (FileVar2,s);
+      P := Pos ('[Hosts]',s);
+      if P>0 then p1 := P;
 
-       P := Pos ('[MainForm]',s);
-       if P>0 then p2 := P;
+      P := Pos ('[MainForm]',s);
+      if P>0 then p2 := P;
 
-       P := Pos ('[TorrentsList]',s);
-       if P>0 then p3 := P;
+      P := Pos ('[TorrentsList]',s);
+      if P>0 then p3 := P;
 
-       P := Pos ('ShowCountryFlag=',s);
-       if P>0 then p4 := P;
-     Until Eof(FileVar2);
-     CloseFile(FileVar2);
-     except
-     end;
-     {$I-} //!use exceptions
+      P := Pos ('ShowCountryFlag=',s);
+      if P>0 then p4 := P;
+    Until Eof(FileVar2);
+    CloseFile(FileVar2);
+    except
+    end;
+    {$I-} //!use exceptions
 
-     if (p1=0) and (p2=0) and (p3=0) and (p4=0) then begin
+    if (p1=0) and (p2=0) and (p3=0) and (p4=0) then begin
         MessageDlg('Invalid file!', mtError, [mbOK], 0);
         exit;
-     end;
+    end;
 
-     // rewrite ini-file
-     s:=OpenDialog1.filename;
-     AssignFile(FileVar1, s );
-     AssignFile(FileVar2, d );
+    // rewrite ini-file
+    s:=OpenDialog1.filename;
+    AssignFile(FileVar1, s );
+    AssignFile(FileVar2, d );
 
-     Reset  (FileVar1);
-     Rewrite(FileVar2);
+    Reset  (FileVar1);
+    Rewrite(FileVar2);
 
-     {$I+} //use exceptions
-     try
-     Repeat
-       Readln (FileVar1,s);
-       Writeln(FileVar2,s);
-     Until Eof(FileVar1);
-     CloseFile(FileVar1);
-     CloseFile(FileVar2);
-     except
-     end;
-     {$I-} //!use exceptions
+    {$I+} //use exceptions
+    try
+    Repeat
+      Readln (FileVar1,s);
+      Writeln(FileVar2,s);
+    Until Eof(FileVar1);
+    CloseFile(FileVar1);
+    CloseFile(FileVar2);
+    except
+    end;
+    {$I-} //!use exceptions
 
-     // Read ini now!
-     CheckAppParams ();
-
-//   MessageDlg('All ok!', mtInformation, [mbOK], 0);
-     MessageDlg(sRestartRequired, mtInformation, [mbOk], 0);
+    // Read ini now!
+    CheckAppParams ();
+    MessageDlg(sRestartRequired, mtInformation, [mbOk], 0);
   end;
 end;
 
@@ -2994,7 +3378,7 @@ begin
 
           if RpcObj.RPCVersion >= 7 then begin
             cbIncompleteDir.Checked:=args.Integers['incomplete-dir-enabled'] <> 0;
-            edIncompleteDir.Text:=UTF8Encode(args.Strings['incomplete-dir']); 
+            edIncompleteDir.Text:=UTF8Encode(args.Strings['incomplete-dir']);
             cbIncompleteDirClick(nil);
           end
           else begin
@@ -3028,7 +3412,7 @@ begin
           end;
 
           if args.IndexOfName('blocklist-url') >= 0 then
-            edBlocklistURL.Text:=UTF8Encode(args.Strings['blocklist-url']) 
+            edBlocklistURL.Text:=UTF8Encode(args.Strings['blocklist-url'])
           else begin
             edBlocklistURL.Visible:=False;
             cbBlocklist.Left:=cbPEX.Left;
@@ -3319,7 +3703,7 @@ end;
 
 procedure TMainForm.acShowCountryFlagExecute(Sender: TObject);
 const
-  FlagsURL = 'https://raw.githubusercontent.com/leonsoft-kras/transmisson-remote-gui/master/flags.zip';
+  FlagsURL = 'https://raw.githubusercontent.com/transmission-remote-gui/transgui/master/flags.zip';
 begin
   if not acShowCountryFlag.Checked then
     if GetFlagsArchive = '' then begin
@@ -3347,7 +3731,30 @@ begin
   acStatusBar.Checked:=not acStatusBar.Checked;
   StatusBar.Visible:=acStatusBar.Checked;
   if StatusBar.Visible then
-    StatusBar.Top:=ClientHeight;
+      StatusBar.Top:=ClientHeight
+  else
+    begin
+      acStatusBarSizes.Checked := true;
+      acStatusBarSizesExecute(nil);
+    end;
+end;
+
+procedure TMainForm.acStatusBarSizesExecute(Sender: TObject);
+begin
+  acStatusBarSizes.Checked := not acStatusBarSizes.Checked;
+  if acStatusBarSizes.Checked then
+    begin
+      acStatusBar.Checked:=false;
+      acStatusBarExecute(nil);
+    end
+      else
+        begin
+          StatusBar.Panels[4].Text:= '';
+          StatusBar.Panels[5].Text:= '';
+          StatusBar.Panels[6].Text:= '';
+          StatusBar.Panels[7].Text:= '';
+        end;
+        Ini.WriteBool('MainForm','StatusBarSizes',acStatusBarSizes.Checked);
 end;
 
 procedure TMainForm.acStopAllTorrentsExecute(Sender: TObject);
@@ -3358,6 +3765,70 @@ end;
 procedure TMainForm.acStopTorrentExecute(Sender: TObject);
 begin
   TorrentAction(GetSelectedTorrents, 'torrent-stop');
+end;
+
+procedure TMainForm.gTorrentsMouseMove(Sender: TObject; Shift: TShiftState; X,
+  Y: Integer);
+var r, c, ADatacol: integer;
+begin
+  ADataCol := 0;
+  gTorrents.MouseToCell(x, y, c, r);
+  if c>= 0 then ADataCol := gTorrents.ColToDataCol(c);
+  if r = 0 then gTorrents.Hint:='';
+  if (ADataCol <> FCol) or (r <> FRow) then
+    begin
+      FCol := ADataCol;
+      FRow := r;
+      case ADataCol of
+      idxAddedOn, idxCompletedOn, idxLastActive:
+        begin
+          Application.CancelHint;
+          gTorrents.Hint := TorrentDateTimeToString(gTorrents.Items[ADataCol, FRow-1],not(FFromNow));
+        end
+        else gTorrents.Hint:='';
+      end;
+    end;
+end;
+
+procedure TMainForm.gTorrentsMouseUp(Sender: TObject; Button: TMouseButton;
+  Shift: TShiftState; X, Y: Integer);
+begin
+  if Button = mbRight then pmTorrents.PopUp;
+end;
+
+procedure TMainForm.LocalWatchTimerTimer(Sender: TObject);
+begin
+  ReadLocalFolderWatch;
+  if FPendingTorrents.Count > 0 then
+    begin
+      FWatchDownloading := true;
+      TickTimerTimer(nil);
+    end;
+end;
+
+
+procedure TMainForm.lvFilesMouseUp(Sender: TObject; Button: TMouseButton;
+  Shift: TShiftState; X, Y: Integer);
+begin
+  if Button = mbRight then pmFiles.PopUp;
+end;
+
+procedure TMainForm.MenuShowExecute(Sender: TObject);
+begin
+  acMenuShow.Checked:=not acMenuShow.Checked;
+  if acMenuShow.Checked = false then
+    MainForm.Menu := nil
+  else
+    MainForm.Menu := MainMenu;
+end;
+
+procedure TMainForm.acToolbarShowExecute(Sender: TObject);
+begin
+  acToolbarShow.Checked:=not acToolbarShow.Checked;
+  if acToolbarShow.Checked = false then
+    MainToolBar.Visible:= false
+  else
+    MainToolBar.Visible:= true;
 end;
 
 procedure TMainForm.acTorrentPropsExecute(Sender: TObject);
@@ -3674,7 +4145,7 @@ begin
     gTorrents.EnsureSelectionVisible;
     ids:=GetSelectedTorrents;
     if gTorrents.SelCount < 2 then
-      s:=Format(sTorrentVerification, [UTF8Encode(widestring(gTorrents.Items[idxName, gTorrents.Items.IndexOf(idxTorrentId, ids[0])]))]) 
+      s:=Format(sTorrentVerification, [UTF8Encode(widestring(gTorrents.Items[idxName, gTorrents.Items.IndexOf(idxTorrentId, ids[0])]))])
     else
       s:=Format(sTorrentsVerification, [gTorrents.SelCount]);
     if MessageDlg('', s, mtConfirmation, mbYesNo, 0, mbNo) <> mrYes then
@@ -3735,6 +4206,10 @@ end;
 
 procedure TMainForm.ApplicationPropertiesMinimize(Sender: TObject);
 begin
+{$ifdef CPUARM}
+  exit;
+{$endif  CPUARM}
+
 {$ifndef darwin}
   if not IsUnity and Ini.ReadBool('Interface', 'TrayMinimize', True) then
     HideApp;
@@ -3751,6 +4226,14 @@ end;
 procedure TMainForm.edSearchChange(Sender: TObject);
 begin
   DoRefresh(True);
+  if edSearch.Text=  '' then tbSearchCancel.Enabled:=false
+                    else tbSearchCancel.Enabled:=true;
+end;
+
+procedure TMainForm.edSearchKeyDown(Sender: TObject; var Key: Word;
+  Shift: TShiftState);
+begin
+    if Key = VK_ESCAPE then edSearch.Text:='';
 end;
 
 procedure TMainForm.FormActivate(Sender: TObject);
@@ -3764,6 +4247,35 @@ var
 begin
   for i:=Low(FileNames) to High(FileNames) do
     AddTorrentFile(FileNames[i]);
+end;
+
+procedure TMainForm.FormKeyDown(Sender: TObject; var Key: Word;
+  Shift: TShiftState);
+var
+  Keypressed: Word;
+begin
+    if (Shift = [ssAlt]) and not (MainForm.ActiveControl is TVarGridStringEditor) then
+    begin
+      Keypressed := Key;
+      Key := 0;
+        case Keypressed of
+          VK_S: edSearch.SetFocus;
+          VK_G: PageInfo.PageIndex:=0;
+          VK_K: PageInfo.PageIndex:=1;
+          VK_P: PageInfo.PageIndex:=2;
+          VK_F: PageInfo.PageIndex:=3;
+          VK_1: lvFilter.Row:=fltAll;
+          VK_2: lvFilter.Row:=fltDown;
+          VK_3: lvFilter.Row:=fltDone;
+          VK_4: lvFilter.Row:=fltActive;
+          VK_5: lvFilter.Row:=fltInactive;
+          VK_6: lvFilter.Row:=fltStopped;
+          VK_7: lvFilter.Row:=fltError;
+          VK_8: lvFilter.Row:=fltWaiting;
+        else Key := KeyPressed;
+        end;
+    end;
+
 end;
 
 procedure TMainForm.FormWindowStateChange(Sender: TObject);
@@ -3814,7 +4326,7 @@ begin
       idxRatio:
         Text:=RatioToString(Sender.Items[idxRatio, ARow]);
       idxAddedOn, idxCompletedOn, idxLastActive:
-        Text:=TorrentDateTimeToString(Sender.Items[ADataCol, ARow]);
+        Text:=TorrentDateTimeToString(Sender.Items[ADataCol, ARow],FFromNow);
       idxPriority:
         Text:=PriorityToStr(Sender.Items[ADataCol, ARow], ImageIndex);
       idxQueuePos:
@@ -3831,6 +4343,14 @@ begin
             Text:=EtaToString(j)
           else
             Text:='';
+        end;
+      idxPrivate:
+        begin
+          j:=Sender.Items[idxPrivate, ARow];
+          if j >= 1 then
+            Text:=sPrivateOn
+          else
+            Text:=sPrivateOff;
         end;
     end;
   end;
@@ -3852,6 +4372,7 @@ begin
     RpcObj.CurTorrentId:=i;
   finally
     RpcObj.Unlock;
+    if acStatusBarSizes.Checked then StatusBarSizes;
   end;
 
   ClearDetailsInfo(GetPageInfoType(PageInfo.ActivePage));
@@ -3922,7 +4443,7 @@ begin
     v:=gTorrents.Items[idxName, i];
     if VarIsEmpty(v) or VarIsNull(v) then
       continue;
-    if Pos(s, Trim(UTF8UpperCase(UTF8Encode(widestring(v))))) > 0 then begin  // Lazarus 1.4.4 1622
+    if Pos(s, Trim(UTF8UpperCase(UTF8Encode(widestring(v))))) > 0 then begin
       ARow:=i;
       break;
     end;
@@ -3939,7 +4460,7 @@ end;
 
 procedure TMainForm.gTorrentsSetEditText(Sender: TObject; ACol, ARow: Integer; const Value: string);
 begin
-  if RenameTorrent(gTorrents.Items[idxTorrentId, ARow], UTF8Encode(widestring(gTorrents.Items[idxName, ARow])), Trim(Value)) then begin 
+  if RenameTorrent(gTorrents.Items[idxTorrentId, ARow], UTF8Encode(widestring(gTorrents.Items[idxName, ARow])), Trim(Value)) then begin
     gTorrents.Items[idxName, ARow]:=UTF8Decode(Trim(Value));
     FFilesTree.Clear;
   end;
@@ -3998,7 +4519,7 @@ begin
         FFiles[idxFileFullPath, ARow]:=UTF8Decode(p + RemotePathDelimiter);
         for i:=ARow + 1 to FFiles.Count - 1 do
           if FFilesTree.RowLevel[i] > lvl then
-            FFiles[idxFileFullPath, i]:=UTF8Decode(p + Copy(UTF8Encode(widestring(FFiles[idxFileFullPath, i])), len + 1, MaxInt)) 
+            FFiles[idxFileFullPath, i]:=UTF8Decode(p + Copy(UTF8Encode(widestring(FFiles[idxFileFullPath, i])), len + 1, MaxInt))
           else
             break;
       finally
@@ -4017,9 +4538,10 @@ begin
       1: ImageIndex:=imgDown;
       2: ImageIndex:=imgSeed;
       3: ImageIndex:=imgActive;
-      4: ImageIndex:=15;
+      4: ImageIndex:=imgInactive;
       5: ImageIndex:=imgStopped;
       6: ImageIndex:=imgError;
+      7: ImageIndex:=imgWaiting
       else
         if Text <> '' then
           if VarIsNull(Sender.Items[-1, ARow]) then
@@ -4138,55 +4660,47 @@ end;
 procedure TMainForm.MainToolBarContextPopup(Sender: TObject; MousePos: TPoint;
   var Handled: Boolean);
 begin
-  if (MainToolBar.ButtonWidth = 23) then begin
-    MainToolBar.ButtonWidth:= 64;
-    MainToolBar.ButtonHeight:=64;
-    Ini.WriteBool('MainForm', 'BigToolbar', True)
-  end else begin
-    MainToolBar.ButtonWidth:= 23;
-    MainToolBar.ButtonHeight:=23;
-    Ini.WriteBool('MainForm', 'BigToolbar', False);
-  end;
+    acBigToolBar.Execute;
 end;
 
 procedure TMainForm.MenuItem101Click(Sender: TObject);
 var
- req, args, tt: TJSONObject;
- ids, t: TJSONArray;
- i: Integer;
- TorrentIds: Variant;
- Magnets: TStringList;
+  req, args, tt: TJSONObject;
+  ids, t: TJSONArray;
+  i: Integer;
+  TorrentIds: Variant;
+  Magnets: TStringList;
 begin
   TorrentIds:=GetSelectedTorrents;
   req:=TJSONObject.Create;
   args:=TJSONObject.Create;
   Magnets:=TStringList.Create;
-try
-      req.Add('method', 'torrent-get');
-      ids:=TJSONArray.Create;
-      for i:=VarArrayLowBound(TorrentIds, 1) to VarArrayHighBound(TorrentIds, 1) do
-        ids.Add(integer(TorrentIds[i]));
-      args.Add('ids', ids);
-      args.Add('fields', TJSONArray.Create(['magnetLink']));
-      req.Add('arguments', args);
-      args:=RpcObj.SendRequest(req);
-      if args = nil then begin
-        CheckStatus(False);
-        exit;
+  try
+    req.Add('method', 'torrent-get');
+    ids:=TJSONArray.Create;
+    for i:=VarArrayLowBound(TorrentIds, 1) to VarArrayHighBound(TorrentIds, 1) do
+      ids.Add(integer(TorrentIds[i]));
+    args.Add('ids', ids);
+    args.Add('fields', TJSONArray.Create(['magnetLink']));
+    req.Add('arguments', args);
+    args:=RpcObj.SendRequest(req);
+    if args = nil then begin
+      CheckStatus(False);
+      exit;
+    end;
+    t:=TJSONArray.Create;
+    t:=args.Arrays['torrents'];
+    for i:= 0 to t.Count-1 do
+      begin
+        tt:=t.Objects[i] as TJSONObject;
+        Magnets.add(tt.Strings['magnetLink']);
       end;
-      t:=TJSONArray.Create;
-      t:=args.Arrays['torrents'];
-      for i:= 0 to t.Count-1 do
-        begin
-          tt:=t.Objects[i] as TJSONObject;
-          Magnets.add(tt.Strings['magnetLink']);
-        end;
-      FLastClipboardLink := Magnets.Text;   // To Avoid TransGUI detect again this existing links
-      Clipboard.AsText := Magnets.Text;
- finally
-      req.Free;
-      args.Free;
-      Magnets.Free;
+    FLastClipboardLink := Magnets.Text;   // To Avoid TransGUI detect again this existing links
+    Clipboard.AsText := Magnets.Text;
+  finally
+    req.Free;
+    args.Free;
+    Magnets.Free;
   end;
 end;
 
@@ -4221,11 +4735,11 @@ begin
   pt:=StatusBar.ClientToScreen(Point(X, Y));
   case StatusBar.GetPanelIndexAt(X, Y) of
     0: if Button = mbLeft then
-         acConnOptions.Execute;
+        acConnOptions.Execute;
     1: if rb then
-         pmDownSpeeds.PopUp(pt.X, pt.Y);
+        pmDownSpeeds.PopUp(pt.X, pt.Y);
     2: if rb then
-         pmUpSpeeds.PopUp(pt.X, pt.Y);
+        pmUpSpeeds.PopUp(pt.X, pt.Y);
   end;
 end;
 
@@ -4315,15 +4829,15 @@ begin
       end;
 
 {$ifdef LCLcarbon}
-     THackApplication(Application).ProcessAsyncCallQueue;
-     if Active and (WindowState <> wsMinimized) then begin
-       if not FFormActive then begin
-         FFormActive:=True;
-         CheckClipboardLink;
-       end;
-     end
-     else
-       FFormActive:=False;
+    THackApplication(Application).ProcessAsyncCallQueue;
+    if Active and (WindowState <> wsMinimized) then begin
+      if not FFormActive then begin
+        FFormActive:=True;
+        CheckClipboardLink;
+      end;
+    end
+    else
+      FFormActive:=False;
 {$endif LCLcarbon}
   finally
     TickTimer.Enabled:=True;
@@ -4339,6 +4853,12 @@ end;
 
 procedure TMainForm.FormClose(Sender: TObject; var CloseAction: TCloseAction);
 begin
+{$ifdef CPUARM}
+//  CloseAction:=caMinimize;
+  BeforeCloseApp;
+  exit;
+{$endif CPUARM}
+
   if Ini.ReadBool('Interface', 'TrayClose', False) then begin
 {$ifdef darwin}
     CloseAction:=caMinimize;
@@ -4372,6 +4892,11 @@ begin
   end;
 end;
 
+procedure TMainForm.tbSearchCancelClick(Sender: TObject);
+begin
+      edSearch.Text:='';
+end;
+
 procedure TMainForm.TorrentsListTimerTimer(Sender: TObject);
 begin
   TorrentsListTimer.Enabled:=False;
@@ -4393,7 +4918,11 @@ end;
 procedure TMainForm.TrayIconDblClick(Sender: TObject);
 begin
 {$ifndef darwin}
-  acShowApp.Execute;
+//  acShowApp.Execute;
+if (MainForm.Visible = false) or (MainForm.WindowState = wsMinimized) then
+    MainForm.ShowApp
+    else
+    MainForm.HideApp;
 {$endif darwin}
 end;
 
@@ -4434,11 +4963,20 @@ begin
     if i >= 0 then
       pwd:=FPasswords.ValueFromIndex[i]
     else begin
-      pwd:='';
-      if not InputQuery(Format(SConnectTo, [FCurConn]), Format(SEnterPassword, [FCurConn]), pwd) then begin
-        RpcObj.Url:='-';
-        Result:=False;
-        exit;
+      pwd := '';
+      // own dialog for entering a password (****)
+      with TPasswordConnect.Create(Self) do
+      try
+        SetText(Format(SConnectTo, [FCurConn]), Format(SEnterPassword, [FCurConn]));
+        if ShowModal <> mrOk then begin
+          RpcObj.Url:='-';
+          Result:=False;
+          exit;
+        end else begin
+          pwd := gPassw
+        end;
+      finally
+        Free;
       end;
     end;
   end
@@ -4447,8 +4985,12 @@ begin
   if i >= 0 then
     FPasswords.Delete(i);
 
+  RpcObj.Http.Sock.SSL.PFXfile:='';
+  RpcObj.Http.Sock.SSL.KeyPassword:='';
   if Ini.ReadBool(Sec, 'UseSSL', False) then begin
     RpcObj.InitSSL;
+    RpcObj.Http.Sock.SSL.PFXfile:=Ini.ReadString(Sec, 'CertFile', '');
+    RpcObj.Http.Sock.SSL.KeyPassword:=DecodeBase64(Ini.ReadString(Sec, 'CertPass', ''));
     if not IsSSLloaded then begin
       MessageDlg(Format(sSSLLoadError, [DLLSSLName, DLLUtilName]), mtError, [mbOK], 0);
       exit;
@@ -4516,6 +5058,7 @@ begin
       pmConnections.Items[0].Checked:=True;
       miConnect.Items[0].Checked:=True;
     end;
+  tbConnect.Caption := pmConnections.Items[0].Caption;
 end;
 
 procedure TMainForm.DoDisconnect;
@@ -4538,13 +5081,14 @@ begin
   lvFilter.Enabled:=False;
   lvFilter.Color:=gTorrents.Color;
   with lvFilter do begin
-    Items[0, 0]:=(SAll);
-    Items[0, 1]:=(SDownloading);
-    Items[0, 2]:=(SCompleted);
-    Items[0, 3]:=(SActive);
-    Items[0, 4]:=(SInactive);
-    Items[0, 5]:=(sStopped);
-    Items[0, 6]:=(sErrorState);
+    Items[0, 0]:=UTF8Decode(SAll); // ALERT - VERIFY - PETROV
+    Items[0, 1]:=UTF8Decode(SDownloading);
+    Items[0, 2]:=UTF8Decode(SCompleted);
+    Items[0, 3]:=UTF8Decode(SActive);
+    Items[0, 4]:=UTF8Decode(SInactive);
+    Items[0, 5]:=UTF8Decode(sStopped);
+    Items[0, 6]:=UTF8Decode(sErrorState);
+    Items[0, 7]:=UTF8Decode(sWaiting);
   end;
   edSearch.Enabled:=False;
   edSearch.Color:=gTorrents.Color;
@@ -4581,6 +5125,7 @@ begin
   FCurDownSpeedLimit:=-2;
   FCurUpSpeedLimit:=-2;
   FillSpeedsMenu;
+  tbConnect.Caption := Format(SConnectTo,['Transmission']);
 end;
 
 procedure TMainForm.ClearDetailsInfo(Skip: TAdvInfoType);
@@ -4704,7 +5249,7 @@ begin
     DoDisconnect;
     Sec:='Connection.' + ActiveConnection;
     if Ini.ReadBool(Sec, 'Autoreconnect', False) then
-       FReconnectTimeOut:=0
+      FReconnectTimeOut:=0
     else
     FReconnectTimeOut:=-1;
     FCurConn:=ActiveConnection;
@@ -4718,7 +5263,7 @@ var
   e: boolean;
 begin
   e:=((Screen.ActiveForm = Self) or not Visible or (WindowState = wsMinimized))
-     and not gTorrents.EditorMode and not lvFiles.EditorMode;
+    and not gTorrents.EditorMode and not lvFiles.EditorMode;
 
   acConnect.Enabled:=e;
   acOptions.Enabled:=e;
@@ -4861,11 +5406,11 @@ var
   i:integer;
 begin
   // PETROV - Herb off
-  i:=Ini.ReadInteger ('Interface', 'IgnoreRightLeft', 0);	// 0 - by default
-     Ini.WriteInteger('Interface', 'IgnoreRightLeft', i);
+  i:=Ini.ReadInteger ('Interface', 'IgnoreRightLeft', 0);   // 0 - by default
+    Ini.WriteInteger('Interface', 'IgnoreRightLeft', i);
 
   if (FTranslationLanguage='English') and (i=0) then
-     i := 1;
+    i := 1;
 
   Result := bdLeftToRight;
   case i of
@@ -4878,6 +5423,33 @@ end;
 
 
 //----------------------------------------------------------------
+function ExcludeInvalidChar (path: string): string;
+var
+  s_old: string;
+  l_old: integer;
+begin
+  s_old := path;
+//path  := StringReplace(path, ':', '_', [rfReplaceAll, rfIgnoreCase]);
+  path  := StringReplace(path, '*', '_', [rfReplaceAll, rfIgnoreCase]);
+  path  := StringReplace(path, '?', '_', [rfReplaceAll, rfIgnoreCase]);
+  path  := StringReplace(path, '|', '_', [rfReplaceAll, rfIgnoreCase]);
+  path  := StringReplace(path, '<', '_', [rfReplaceAll, rfIgnoreCase]);
+  path  := StringReplace(path, '>', '_', [rfReplaceAll, rfIgnoreCase]);
+  path  := StringReplace(path, '"', '_', [rfReplaceAll, rfIgnoreCase]);
+  path  := StringReplace(path, '~', '_', [rfReplaceAll, rfIgnoreCase]);
+//path  := StringReplace(path, '..','_', [rfReplaceAll, rfIgnoreCase]); bag
+
+  l_old := 0;
+  if path <> s_old then begin
+    l_old :=1;
+  end;
+
+  Result:= path;
+end;
+
+
+
+//----------------------------------------------------------------
 function TMainForm.CorrectPath (path: string): string; // PETROV
 var
   l_old: integer;
@@ -4886,9 +5458,9 @@ begin
   Result:= path;
   l_old := length(path);
   if l_old >= 1 then begin
-     if path[l_old]='/' then
+    if path[l_old]='/' then
         path := MidStr(path,1,l_old-1);
-     Result:= path;
+    Result:= path;
   end;
 end;
 
@@ -4932,7 +5504,7 @@ begin
       end;
   end
   else begin
-    Result:=UTF8Encode(t.Strings['announceResponse']); 
+    Result:=UTF8Encode(t.Strings['announceResponse']);
     if Result = 'Success' then
       Result:=''
     else
@@ -4947,7 +5519,7 @@ begin
   end;
 
   if (Result = '') or (Status = TR_STATUS_STOPPED) or (Status = TR_STATUS_FINISHED) then
-    Result:=UTF8Encode(gerr); 
+    Result:=UTF8Encode(gerr);
 end;
 
 function TMainForm.SecondsToString(j: integer): string;
@@ -5070,7 +5642,7 @@ var
   FilterIdx, OldId: integer;
   TrackerFilter, PathFilter: string;
   UpSpeed, DownSpeed: double;
-  DownCnt, SeedCnt, CompletedCnt, ActiveCnt, StoppedCnt, ErrorCnt: integer;
+  DownCnt, SeedCnt, CompletedCnt, ActiveCnt, StoppedCnt, ErrorCnt, WaitingCnt: integer;
   IsActive: boolean;
   Paths: TStringList;
   v: variant;
@@ -5123,6 +5695,7 @@ begin
     FieldExists[idxPriority]:=t.IndexOfName('bandwidthPriority') >= 0;
     FieldExists[idxQueuePos]:=t.IndexOfName('queuePosition') >= 0;
     FieldExists[idxSeedingTime]:=t.IndexOfName('secondsSeeding') >= 0;
+    FieldExists[idxPrivate]:=t.IndexOfName('isPrivate') >= 0;
   end;
 
   UpSpeed:=0;
@@ -5133,17 +5706,18 @@ begin
   ActiveCnt:=0;
   StoppedCnt:=0;
   ErrorCnt:=0;
+  WaitingCnt:=0;
 
   FilterIdx:=lvFilter.Row;
   if VarIsNull(lvFilter.Items[0, FilterIdx]) then
     Dec(FilterIdx);
   if FilterIdx >= StatusFiltersCount then
     if not VarIsNull(lvFilter.Items[-1, FilterIdx]) then begin
-      PathFilter:=UTF8Encode(widestring(lvFilter.Items[-1, FilterIdx])); 
+      PathFilter:=UTF8Encode(widestring(lvFilter.Items[-1, FilterIdx]));
       FilterIdx:=fltAll;
     end
     else begin
-      TrackerFilter:=UTF8Encode(widestring(lvFilter.Items[0, FilterIdx])); 
+      TrackerFilter:=UTF8Encode(widestring(lvFilter.Items[0, FilterIdx]));
       FilterIdx:=fltAll;
       i:=RPos('(', TrackerFilter);
       if i > 0 then
@@ -5169,7 +5743,7 @@ begin
 
     j:=t.Integers['status'];
     if ExistingRow and (j = TR_STATUS_SEED) and (FTorrents[idxStatus, row] = TR_STATUS_DOWNLOAD) then
-      DownloadFinished(UTF8Encode(widestring(FTorrents[idxName, row]))); 
+      DownloadFinished(UTF8Encode(widestring(FTorrents[idxName, row])));
     FTorrents[idxStatus, row]:=j;
     if j = TR_STATUS_CHECK_WAIT  then StateImg:=imgDownQueue else
     if j = TR_STATUS_CHECK  then StateImg:=imgDownQueue else
@@ -5217,7 +5791,7 @@ begin
     end
     else
       s:='';
-    FTorrents[idxTrackerStatus, row]:=UTF8Decode(s); 
+    FTorrents[idxTrackerStatus, row]:=UTF8Decode(s);
 
     if FTorrents[idxStatus, row] = TR_STATUS_CHECK then
       f:=t.Floats['recheckProgress']*100.0
@@ -5305,7 +5879,7 @@ begin
     end
     else
       if FieldExists[idxTracker] then
-        s:=UTF8Encode(t.Arrays['trackers'].Objects[0].Strings['announce']) 
+        s:=UTF8Encode(t.Arrays['trackers'].Objects[0].Strings['announce'])
       else begin
         s:='';
         if VarIsEmpty(FTorrents[idxTracker, row]) then
@@ -5331,17 +5905,17 @@ begin
       j:=Pos(':', s);
       if j > 0 then
         System.Delete(s, j, MaxInt);
-      FTorrents[idxTracker, row]:=UTF8Decode(s); 
+      FTorrents[idxTracker, row]:=UTF8Decode(s);
     end;
 
     if FieldExists[idxPath] then
-      FTorrents[idxPath, row]:=UTF8Decode(ExcludeTrailingPathDelimiter(UTF8Encode(t.Strings['downloadDir']))) 
+      FTorrents[idxPath, row]:=UTF8Decode(ExcludeTrailingPathDelimiter(UTF8Encode(t.Strings['downloadDir'])))
     else
       if VarIsEmpty(FTorrents[idxPath, row]) then
         RpcObj.RequestFullInfo:=True;
 
     if not VarIsEmpty(FTorrents[idxPath, row]) then begin
-      s:=UTF8Encode(widestring(FTorrents[idxPath, row])); 
+      s:=UTF8Encode(widestring(FTorrents[idxPath, row]));
       j:=Paths.IndexOf(s);
       if j < 0 then
         Paths.AddObject(s, TObject(1))
@@ -5358,6 +5932,9 @@ begin
         Inc(j, FinishedQueue);
       FTorrents[idxQueuePos, row]:=j;
     end;
+
+    if FieldExists[idxPrivate] then
+      FTorrents[idxPrivate, row]:=t.Integers['isPrivate'];
 
     DownSpeed:=DownSpeed + FTorrents[idxDownSpeed, row];
     UpSpeed:=UpSpeed + FTorrents[idxUpSpeed, row];
@@ -5396,6 +5973,9 @@ begin
       if j = TR_STATUS_FINISHED then
         Inc(CompletedCnt);
 
+      if (j = TR_STATUS_CHECK) or (j = TR_STATUS_CHECK_WAIT) or (j = TR_STATUS_DOWNLOAD_WAIT) then
+        inc(WaitingCnt);
+
       StateImg:=FTorrents[idxStateImg, i];
       if StateImg in [imgStopped, imgDone] then
         Inc(StoppedCnt)
@@ -5404,7 +5984,7 @@ begin
           Inc(ErrorCnt);
 
       if not VarIsEmpty(FTorrents[idxTracker, i]) then begin
-        s:=UTF8Encode(widestring(FTorrents[idxTracker, i])); 
+        s:=UTF8Encode(widestring(FTorrents[idxTracker, i]));
         j:=FTrackers.IndexOf(s);
         if j < 0 then
           j:=FTrackers.Add(s);
@@ -5413,7 +5993,7 @@ begin
           continue;
       end;
 
-      if (PathFilter <> '') and not VarIsEmpty(FTorrents[idxPath, i]) and (UTF8Decode(PathFilter) <> FTorrents[idxPath, i]) then 
+      if (PathFilter <> '') and not VarIsEmpty(FTorrents[idxPath, i]) and (UTF8Decode(PathFilter) <> FTorrents[idxPath, i]) then
         continue;
 
       case FilterIdx of
@@ -5435,10 +6015,13 @@ begin
         fltError:
           if not (StateImg in [imgDownError, imgSeedError, imgError]) then
             continue;
+        fltWaiting:
+            if (FTorrents[idxStatus, i] <> TR_STATUS_CHECK) and (FTorrents[idxStatus, i] <> TR_STATUS_CHECK_WAIT) and (FTorrents[idxStatus, i] <> TR_STATUS_DOWNLOAD_WAIT)then
+              continue;
       end;
 
       if edSearch.Text <> '' then
-        if UTF8Pos(UTF8UpperCase(edSearch.Text), UTF8UpperCase(UTF8Encode(widestring(FTorrents[idxName, i])))) = 0 then 
+        if UTF8Pos(UTF8UpperCase(edSearch.Text), UTF8UpperCase(UTF8Encode(widestring(FTorrents[idxName, i])))) = 0 then
           continue;
 
       if not gTorrents.Items.Find(idxTorrentId, FTorrents[idxTorrentId, i], row) then
@@ -5482,9 +6065,10 @@ begin
     lvFilter.Items[0, 1]:=UTF8Decode(Format('%s (%d)', [SDownloading, DownCnt]));
     lvFilter.Items[0, 2]:=UTF8Decode(Format('%s (%d)', [SCompleted, CompletedCnt]));
     lvFilter.Items[0, 3]:=UTF8Decode(Format('%s (%d)', [SActive, ActiveCnt]));
-    lvFilter.Items[0, 4]:=UTF8Decode(Format('%s (%d)', [SInactive, FTorrents.Count - ActiveCnt - StoppedCnt])); 
+    lvFilter.Items[0, 4]:=UTF8Decode(Format('%s (%d)', [SInactive, FTorrents.Count - ActiveCnt - StoppedCnt]));
     lvFilter.Items[0, 5]:=UTF8Decode(Format('%s (%d)', [sStopped, StoppedCnt]));
     lvFilter.Items[0, 6]:=UTF8Decode(Format('%s (%d)', [sErrorState, ErrorCnt]));
+    lvFilter.Items[0, 7]:=UTF8Decode(Format('%s (%d)', [sWaiting, WaitingCnt]));
 
     j:=StatusFiltersCount;
 
@@ -5495,11 +6079,11 @@ begin
       for i:=0 to Paths.Count - 1 do begin
         s:=ExtractFileName(Paths[i]);
         for row:=StatusFiltersCount + 1 to j - 1 do
-          if ExtractFileName(UTF8Encode(widestring(lvFilter.Items[-1, row]))) = s then begin 
+          if ExtractFileName(UTF8Encode(widestring(lvFilter.Items[-1, row]))) = s then begin
             s:=Paths[i];
             lvFilter.Items[0, row]:=UTF8Decode(Format('%s (%d)', [UTF8Encode(widestring(lvFilter.Items[-1, row])), ptruint(Paths.Objects[row - StatusFiltersCount - 1])]));
           end;
-        lvFilter.Items[ 0, j]:=UTF8Decode(Format('%s (%d)', [s, ptruint(Paths.Objects[i])])); 
+        lvFilter.Items[ 0, j]:=UTF8Decode(Format('%s (%d)', [s, ptruint(Paths.Objects[i])]));
         lvFilter.Items[-1, j]:=UTF8Decode(Paths[i]);
         if Paths[i] = PathFilter then
           crow:=j;
@@ -5519,7 +6103,7 @@ begin
       while i < FTrackers.Count do begin
         j:=ptruint(FTrackers.Objects[i]);
         if j > 0 then begin
-          lvFilter.Items[ 0, row]:=UTF8Decode(Format('%s (%d)', [FTrackers[i], j])); 
+          lvFilter.Items[ 0, row]:=UTF8Decode(Format('%s (%d)', [FTrackers[i], j]));
           lvFilter.Items[-1, row]:=NULL;
           if FTrackers[i] = TrackerFilter then
             crow:=row;
@@ -5543,8 +6127,12 @@ begin
 
   CheckStatus;
 
-  StatusBar.Panels[1].Text:=Format(sDownSpeed, [GetHumanSize(DownSpeed, 1)]);
-  StatusBar.Panels[2].Text:=Format(sUpSpeed, [GetHumanSize(UpSpeed, 1)]);
+  s := GetHumanSize(FCurDownSpeedLimit*1024,2,'');
+  if s = '' then s := Format(SUnlimited,[]) else s := s + '/s';
+  ss := GetHumanSize(FCurUpSpeedLimit*1024,2,'');
+  if ss = '' then ss := Format(SUnlimited,[]) else ss := ss + '/s';
+  StatusBar.Panels[1].Text:=Format(sDownSpeed, [GetHumanSize(DownSpeed, 1)]) + ' (' + s + ')';
+  StatusBar.Panels[2].Text:=Format(sUpSpeed, [GetHumanSize(UpSpeed, 1)]) + ' (' + ss + ')';
 
 {$ifndef LCLcarbon}
   // There is memory leak in TTrayIcon implementation for Mac.
@@ -5669,7 +6257,7 @@ begin
     d:=files[i];
     if not (d is TJSONObject) then continue;
     f:=d as TJSONObject;
-    s:=UTF8Encode(f.Strings['name']); 
+    s:=UTF8Encode(f.Strings['name']);
     if i = 0 then
       Result:=ExtractFilePath(s)
     else begin
@@ -5765,7 +6353,7 @@ begin
 
   lvFiles.Enabled:=True;
   lvFiles.Color  :=clWindow;
-  FFilesTree.DownloadDir:=UTF8Encode(DownloadDir); 
+  FFilesTree.DownloadDir:=UTF8Encode(DownloadDir);
   FFilesTree.FillTree(ATorrentId, list, priorities, wanted);
   tabFiles.Caption:=Format('%s (%d)', [FFilesCapt, list.Count]);
   DetailsUpdated;
@@ -5801,7 +6389,7 @@ begin
   tr:=GetTorrentError(t, gTorrents.Items[idxStatus, idx]);
   txError.Constraints.MinWidth:=400;
   if Ini.ReadBool('Translation', 'TranslateMsg', True) then
-     txError.Caption:=TranslateString(tr, True)
+    txError.Caption:=TranslateString(tr, True)
   else
       txError.Caption:=tr;
 
@@ -5903,9 +6491,10 @@ begin
   if f = 1 then
     s:=sUpdating
   else
-    s:=DateTimeToStr(UnixToDateTime(Trunc(f)) + GetTimeZoneDelta);
+    s:=TorrentDateTimeToString(Trunc(f),FFromNow);
   txTrackerUpdate.Caption:=s;
-  txTracker.Caption:=UTF8Encode(widestring(gTorrents.Items[idxTracker, idx])); 
+  txTrackerUpdate.Hint:=TorrentDateTimeToString(Trunc(f),not(FFromNow));
+  txTracker.Caption:=UTF8Encode(widestring(gTorrents.Items[idxTracker, idx]));
   if RpcObj.RPCVersion >= 7 then
     if t.Arrays['trackerStats'].Count > 0 then
       i:=t.Arrays['trackerStats'].Objects[0].Integers['seederCount']
@@ -5927,29 +6516,32 @@ begin
   s:=StringReplace(s, '/', ' ' + sOf + ' ', []);
   txPeers.Caption:=StringReplace(s, ')', ' '+ sInSwarm+ ')', []);
   txMaxPeers.Caption:=t.Strings['maxConnectedPeers'];
-  txLastActive.Caption:=TorrentDateTimeToString(Trunc(t.Floats['activityDate']));
+  txLastActive.Caption:=TorrentDateTimeToString(Trunc(t.Floats['activityDate']),FFromNow);
+  txLastActive.Hint:=TorrentDateTimeToString(Trunc(t.Floats['activityDate']),Not(FFromNow));
   panTransfer.ChildSizing.Layout:=cclLeftToRightThenTopToBottom;
 
   if RpcObj.RPCVersion >= 7 then
-     txMagnetLink.Text := t.Strings['magnetLink'];
+    txMagnetLink.Text := t.Strings['magnetLink'];
 
 
   panGeneralInfo.ChildSizing.Layout:=cclNone;
 
-  s:=UTF8Encode(widestring(gTorrents.Items[idxName, idx])); 
+  s:=UTF8Encode(widestring(gTorrents.Items[idxName, idx]));
   if RpcObj.RPCVersion >= 4 then
-    s:=IncludeProperTrailingPathDelimiter(UTF8Encode(t.Strings['downloadDir'])) + s; 
+    s:=IncludeProperTrailingPathDelimiter(UTF8Encode(t.Strings['downloadDir'])) + s;
   txTorrentName.Caption:=s;
   s:=Trim(UTF8Encode(t.Strings['creator']));
   if s <> '' then
     s:=' by ' + s;
-  txCreated.Caption:=TorrentDateTimeToString(Trunc(t.Floats['dateCreated'])) + s;
+  txCreated.Caption:=TorrentDateTimeToString(Trunc(t.Floats['dateCreated']),FFromNow) + s;
+  txCreated.Hint   :=TorrentDateTimeToString(Trunc(t.Floats['dateCreated']),Not(FFromNow)) + s;
   if gTorrents.Items[idxSize, idx] >= 0 then begin
     txTotalSize.Caption:=Format(sDone, [GetHumanSize(t.Floats['totalSize']), GetHumanSize(t.Floats['sizeWhenDone'] - t.Floats['leftUntilDone'])]);
     if t.Floats['totalSize'] = t.Floats['haveValid'] then
       i:=t.Integers['pieceCount']
     else
-      i:=Trunc(t.Floats['haveValid']/t.Floats['pieceSize']);
+      i:=Trunc(t.Floats['haveValid']/(t.Floats['pieceSize'] + 0.00000001)); // division by 0
+
     txPieces.Caption:=Format(sHave, [t.Integers['pieceCount'], GetHumanSize(t.Floats['pieceSize']), i]);
   end
   else begin
@@ -5958,9 +6550,9 @@ begin
   end;
 
   txHash.Caption:=t.Strings['hashString'];
-  txComment.Caption:=UTF8Encode(t.Strings['comment']); 
+  txComment.Caption:=UTF8Encode(t.Strings['comment']);
   if (AnsiCompareText(Copy(txComment.Caption, 1, 7), 'http://') = 0)
-     or (AnsiCompareText(Copy(txComment.Caption, 1, 8), 'https://') = 0)
+    or (AnsiCompareText(Copy(txComment.Caption, 1, 8), 'https://') = 0)
   then begin
     if not Assigned(txComment.OnClick) then begin
       txComment.OnClick:=@UrlLabelClick;
@@ -5976,8 +6568,10 @@ begin
       txComment.ParentFont:=True;
     end;
   end;
-  txAddedOn.Caption:=TorrentDateTimeToString(Trunc(t.Floats['addedDate']));
-  txCompletedOn.Caption:=TorrentDateTimeToString(Trunc(t.Floats['doneDate']));
+  txAddedOn.Caption:=TorrentDateTimeToString(Trunc(t.Floats['addedDate']),FFromNow);
+  txAddedOn.Hint:=TorrentDateTimeToString(Trunc(t.Floats['addedDate']),Not(FFromNow));
+  txCompletedOn.Caption:=TorrentDateTimeToString(Trunc(t.Floats['doneDate']),FFromNow);
+  txCompletedOn.Hint:=TorrentDateTimeToString(Trunc(t.Floats['doneDate']),Not(FFromNow));
   panGeneralInfo.ChildSizing.Layout:=cclLeftToRightThenTopToBottom;
   DetailsUpdated;
 end;
@@ -6170,10 +6764,10 @@ procedure TMainForm.FillStatistics(s: TJSONObject);
   procedure _Fill(idx: integer; s: TJSONObject);
   begin
     with gStats do begin
-      Items[idx, 0]:=UTF8Decode(GetHumanSize(s.Floats['downloadedBytes'])); //UTF8Decode
-      Items[idx, 1]:=UTF8Decode(GetHumanSize(s.Floats['uploadedBytes'])); //UTF8Decode
+      Items[idx, 0]:=UTF8Decode(GetHumanSize(s.Floats['downloadedBytes']));
+      Items[idx, 1]:=UTF8Decode(GetHumanSize(s.Floats['uploadedBytes']));
       Items[idx, 2]:=s.Integers['filesAdded'];
-      Items[idx, 3]:=UTF8Decode(SecondsToString(s.Integers['secondsActive'])); //UTF8Decode
+      Items[idx, 3]:=UTF8Decode(SecondsToString(s.Integers['secondsActive']));
     end;
   end;
 
@@ -6328,6 +6922,7 @@ var
   i, j, k, level: integer;
   pri: string;
 begin
+  Result:= false;
   if (gTorrents.Items.Count = 0) or (PageInfo.ActivePage <> tabFiles) then exit;
   SetLength(Files, lvFiles.Items.Count);
   pri:=APriority;
@@ -6478,35 +7073,51 @@ begin
   end;
 end;
 
-function TMainForm.ExecRemoteFile(const FileName: string; SelectFile: boolean): boolean;
+function TMainForm.ExecRemoteFile(const FileName: string; SelectFile: boolean; Userdef: boolean): boolean;
 
   procedure _Exec(s: string);
   var
     p: string;
   begin
     AppBusy;
-    if SelectFile then
+    if SelectFile then begin
       if FileExistsUTF8(s) then begin
 {$ifdef mswindows}
-        p:=Format('/select,"%s"', [s]);
-        s:='explorer.exe';
+if Userdef then
+              begin
+                    p:=Format(FUserDefinedMenuParam, [s]);
+                    s:=FUserDefinedMenuEx;
+              end
+              else
+              begin
+                    p:=Format(FFileManagerDefaultParam, [s]); ; // ALERT  //      p:=Format('/select,"%s"', [s]);
+                    s:=FFileManagerDefault;                               //      s:='explorer.exe';
+              end;
 {$else}
         p:='';
         s:=ExtractFilePath(s);
 {$endif mswindows}
-      end
-      else begin
+      end else begin
         p:='';
         s:=ExtractFilePath(s);
       end;
+    end else begin
 
-//{$ifdef mswindows}
-      Result:=OpenURL(s, p);
-//{$else}
-// using lclintf;
-//      //Result := OpenURL(s, p); // does not work in latest linux very well!!!!
-//      Result   := OpenDocument(s); // works better
-//{$endif mswindows}
+    end;
+
+{$ifdef mswindows}
+if Userdef then
+              begin
+                    p := Format(FUserDefinedMenuParam, [s]);
+                    s := FUserDefinedMenuEx;
+              end ;
+                    Result:=OpenURL(s, p);
+{$else}
+      if FLinuxOpenDoc = 0 then
+          Result := OpenURL(s, p)    // does not work in latest linux very well!!!! old.vers
+      else
+          Result := OpenDocument(s); // works better - new.vers
+{$endif mswindows}
 
     AppNormal;
     if not Result then begin
@@ -6516,10 +7127,25 @@ function TMainForm.ExecRemoteFile(const FileName: string; SelectFile: boolean): 
   end;
 
 var
-  s: string;
+  s,r: string;
+  i: integer;
 begin
+  Result:= false;
   s:=MapRemoteToLocal(FileName);
   if s <> '' then begin
+    if Userdef then
+      begin
+      if (lvFiles.Focused) and (lvFiles.SelCount > 1) then
+          begin
+                r := '';
+                for i := 0 to lvFiles.Items.Count-1 do
+                  if lvFiles.RowSelected[i] then
+                    if r = '' then r := MapRemoteToLocal(FFilesTree.GetFullPath(i)) + '"'  else
+                      r := r + ' "'+ MapRemoteToLocal(FFilesTree.GetFullPath(i)) + '"';
+                s := r;
+          end;
+        // else s := '"' + s + '"';
+      end;
     _Exec(s);
     exit;
   end;
@@ -6555,6 +7181,78 @@ begin
   end;
 end;
 
+function TMainForm.GetDisplayedTorrents: variant;
+var
+  i,j : integer;
+begin
+  with gTorrents do begin
+    if Items.Count = 0 then begin
+      Result:=Unassigned;
+      exit;
+    end;
+        Result:=VarArrayCreate([0, gTorrents.Items.Count - 1], varinteger);
+        j:=0;
+        for i:=0 to gTorrents.Items.Count - 1 do
+          if gTorrents.RowVisible[i] then begin
+            Result[j]:=Items[idxTorrentId, i];
+            Inc(j);
+          end;
+  end;
+end;
+
+procedure TMainform.StatusBarSizes;
+var
+  MMap: TMyHashMap;
+  ids, cidx: variant;
+  TotalSize, TotalDownloaded, TotalSizeToDownload, TorrentDownloaded, TorrentSizeToDownload: Int64;
+  i: Integer;
+  a, b, c, d: Int64;
+begin
+    try
+    if gTorrents.Items.Count > 0 then
+      begin
+        if gTorrents.SelCount > 0 then
+            ids := GetSelectedTorrents
+        else  ids := GetDisplayedTorrents;
+        TotalSize := 0;
+        TotalDownloaded := 0;
+        TotalSizeToDownload := 0;
+
+        MMap := TMyHashMap.Create;
+        for i:=0 to FTorrents.Count -1 do
+        begin
+          MMap[StrToInt(Ftorrents.Items[idxTorrentId, i])] := i;
+        end;
+
+        for i:=VarArrayLowBound(ids, 1) to VarArrayHighBound(ids, 1) do
+        begin
+          cidx := MMap[ids[i]];
+          TotalSize             := TotalSize + FTorrents.Items[idxSize, cidx];
+          TorrentSizeToDownload := FTorrents.Items[idxSizetoDowload, cidx];
+          TorrentDownloaded     := TorrentSizeToDownload * (FTorrents.Items[idxDone, cidx] / 100);
+          TotalSizeToDownload   := TotalSizeToDownload + TorrentSizeToDownload;
+          TotalDownloaded       := TotalDownloaded + TorrentDownloaded;
+        end;
+        MMap.Free;
+
+        StatusBar.Panels[4].Text:=Format(sTotalSize,[GetHumanSize(TotalSize, 0, '?')]);
+        StatusBar.Panels[5].Text:=Format(sTotalSizeToDownload,[GetHumanSize(TotalSizeToDownload, 0, '?')]);
+        StatusBar.Panels[6].Text:=Format(sTotalDownloaded,[GetHumanSize(TotalDownloaded, 0, '?')]);
+        StatusBar.Panels[7].Text:=Format(sTotalRemain,[GetHumanSize(TotalSizeToDownload - TotalDownloaded, 0, '?')]);
+    end
+    else
+    begin
+      StatusBar.Panels[4].Text:=Format(sTotalSize,[GetHumanSize(0, 0, '?')]);
+      StatusBar.Panels[5].Text:=Format(sTotalSizeToDownload,[GetHumanSize(0, 0, '?')]);
+      StatusBar.Panels[6].Text:=Format(sTotalDownloaded,[GetHumanSize(0, 0, '?')]);
+      StatusBar.Panels[7].Text:=Format(sTotalRemain,[GetHumanSize(0, 0, '?')]);
+    end;
+    except
+        gTorrents.Refresh;
+    end;
+
+end;
+
 procedure TMainForm.FillDownloadDirs(CB: TComboBox; const CurFolderParam: string);
 var
   i, j, n,xx, m: integer;
@@ -6577,9 +7275,9 @@ begin
 
       n := 0;
       for xx:=0 to CB.Items.Count - 1 do begin
-         if CB.Items[xx]=s then begin
-           n := 1;
-         end;
+        if CB.Items[xx]=s then begin
+          n := 1;
+        end;
       end;
 
       if n=0 then begin
@@ -6591,7 +7289,7 @@ begin
         pFD.Txt:= s; // for debug
 
         try
-		  pFD.Lst := EncodeDate(2000,1,1); // last time folder
+      pFD.Lst := EncodeDate(2000,1,1); // last time folder
 
           if (lastDt <> '') then begin
             dd := Copy (lastDt, 1, 2);
@@ -6606,7 +7304,7 @@ begin
             pFD.Lst := EncodeDate(ny,nm,nd);
           end
         except
-        	MessageDlg('Error: LS-007. Please contact the developer', mtError, [mbOK], 0);
+          MessageDlg('Error: LS-007. Please contact the developer', mtError, [mbOK], 0);
             pFD.Lst := EncodeDate(2000,1,1); // last time folder
         end;
 
@@ -6615,7 +7313,7 @@ begin
     end;
   end;
 
-  s:=CorrectPath (Ini.ReadString(IniSec, CurFolderParam, '')); // PETROV
+  s:=CorrectPath (Ini.ReadString(IniSec, CurFolderParam, ''));
   if s <> '' then begin
     i:=CB.Items.IndexOf(s);
     if i > 0 then  // autosorting
@@ -6624,7 +7322,7 @@ begin
   end
   else begin
     if CB.Items.Count > 0 then
-       CB.ItemIndex:=0;
+      CB.ItemIndex:=0;
   end;
 end;
 
@@ -6642,33 +7340,41 @@ begin
 
   try
     if CurFolderParam = 'LastMoveDir' then begin
-    if i < 0 then begin
-        DeleteDirs (CB, 1);
-        CB.Items.Insert (0, selfolder);
-        i      :=CB.Items.IndexOf(selfolder);
-        pFD    := FolderData.create;
-        pFD.Hit:= 1;
-        pFD.Ext:= '';
-        pFD.Txt:= selfolder;
-        pFD.Lst:= SysUtils.Date+7; // +7 days
-        CB.Items.Objects[i]:= pFD;
+      if i < 0 then begin
+          DeleteDirs (CB, 1);
+          CB.Items.Add  (selfolder);
+          i := CB.Items.IndexOf(selfolder);
+          if i >= 0 then begin
+            pFD    := FolderData.create;
+            if pFD <> nil then begin
+              pFD.Hit:= 1;
+              pFD.Ext:= '';
+              pFD.Txt:= selfolder;
+              pFD.Lst:= IncDay(Today, 7); // +7 days
+              CB.Items.Objects[i]:= pFD;
+            end;
+          end;
       end else begin
-        pFD    := CB.Items.Objects[i] as FolderData;
-        pFD.Hit:= pFD.Hit + 1;
-        pFD.Lst:= SysUtils.Date;
-        CB.Items.Objects[i]:= pFD;
-        DeleteDirs (CB, 0);
+          pFD    := CB.Items.Objects[i] as FolderData;
+          if pFD <> nil then begin
+            pFD.Hit:= pFD.Hit + 1;
+            pFD.Lst:= Today;
+            CB.Items.Objects[i]:= pFD;
+          end;
+          DeleteDirs (CB, 0);
       end;
     end;
   except
-    MessageDlg('Error: LS-008. Please contact the developer', mtError, [mbOK], 0);
+//    MessageDlg('Error: LS-008. Please contact the developer', mtError, [mbOK], 0);
   end;
 
   try
     Ini.WriteInteger(IniSec, 'FolderCount', CB.Items.Count);
     for i:=0 to CB.Items.Count - 1 do begin
-      tmp := CorrectPath(CB.Items[i]); // PETROV
+      tmp := CorrectPath(CB.Items[i]);
       pFD := CB.Items.Objects[i] as FolderData;
+      if pFD = nil then continue;
+
       Ini.WriteString (IniSec, Format('Folder%d', [i]), tmp);
       Ini.WriteInteger(IniSec, Format('FolHit%d', [i]), pFD.Hit);
       Ini.WriteString (IniSec, Format('FolExt%d', [i]), pFD.Ext);
@@ -6696,28 +7402,29 @@ var
   pFD : FolderData;
 begin
     max:=Ini.ReadInteger('Interface', 'MaxFoldersHistory',  50);
-    Ini.WriteInteger    ('Interface', 'MaxFoldersHistory', max); // PETROV
+    Ini.WriteInteger    ('Interface', 'MaxFoldersHistory', max);
 
     try
     while (CB.Items.Count+maxdel) >= max do begin
-       min := 9999999;
-       indx:=-1;
-       for i:=0 to CB.Items.Count - 1 do begin
+      min := 9999999;
+      indx:=-1;
+      for i:=0 to CB.Items.Count - 1 do begin
+        pFD := CB.Items.Objects[i] as FolderData;
+        if pFD = nil then continue;
 
-         pFD := CB.Items.Objects[i] as FolderData;
-         fldr := DaysBetween(SysUtils.Date,pFD.Lst);
-         if SysUtils.Date > pFD.Lst then
-           fldr := 0- fldr;
+        fldr := DaysBetween(Today,pFD.Lst);
+        if Today > pFD.Lst then
+          fldr := 0- fldr;
 
-         fldr := fldr + pFD.Hit;
-         if fldr < min then begin
-           min := fldr;
-           indx:= i;
-         end;
-       end;
+        fldr := fldr + pFD.Hit;
+        if fldr < min then begin
+          min := fldr;
+          indx:= i;
+        end;
+      end;
 
-       if indx > -1 then
-         CB.Items.Delete(indx);
+      if indx > -1 then
+        CB.Items.Delete(indx);
     end;
     except
       MessageDlg('Error: LS-010. Please contact the developer', mtError, [mbOK], 0);
@@ -7001,6 +7708,7 @@ begin
       finally
         if WasHidden then
           HideTaskbarButton;
+          FWatchDownloading := false;
       end;
     end;
   finally
@@ -7021,6 +7729,7 @@ begin
     if s = FLastClipboardLink then
       exit;
     FLastClipboardLink:=s;
+    if isHash(s) then s := 'magnet:?xt=urn:btih:' + s;
     if not IsProtocolSupported(s) then
       exit;
     if (Pos('magnet:', LazUTF8.UTF8LowerCase(s)) <> 1) and (LazUTF8.UTF8LowerCase(Copy(s, Length(s) - Length(strTorrentExt) + 1, MaxInt)) <> strTorrentExt) then
@@ -7113,7 +7822,7 @@ begin
   end;
 end;
 
-procedure TMainForm.OpenCurrentTorrent(OpenFolderOnly: boolean);
+procedure TMainForm.OpenCurrentTorrent(OpenFolderOnly: boolean; UserDef: boolean);
 var
   res: TJSONObject;
   p, s: string;
@@ -7136,26 +7845,67 @@ begin
           files:=Arrays['files'];
           if files.Count = 0 then exit;
           if files.Count = 1 then begin
-            p:=UTF8Encode((files[0] as TJSONObject).Strings['name']); 
+            p:=UTF8Encode((files[0] as TJSONObject).Strings['name']);
             sel:=OpenFolderOnly;
           end
           else begin
+            //sel:=OpenFolderOnly; // bag? missed?
             s:=GetFilesCommonPath(files);
             repeat
               p:=s;
               s:=ExtractFilePath(p);
             until (s = '') or (s = p);
           end;
-          p:=IncludeTrailingPathDelimiter(UTF8Encode(Strings['downloadDir'])) + p; 
+          p:=IncludeTrailingPathDelimiter(UTF8Encode(Strings['downloadDir'])) + p;
         end;
       finally
         res.Free;
       end;
-    ExecRemoteFile(p, sel);
+    ExecRemoteFile(p, sel, Userdef);
   finally
     AppNormal;
   end;
 end;
+
+procedure myDumpAddr(Addr: Pointer;var f:system.text);
+begin
+  try
+    WriteLn(f,BackTraceStrFunc(Addr));
+  except
+    writeLn(f,SysBackTraceStr(Addr));
+  end;
+end;
+procedure MyDumpExceptionBackTrace(var f:system.text);
+var
+  FrameCount: integer;
+  Frames: PPointer;
+  FrameNumber:Integer;
+begin
+  WriteLn(f,'Stack trace:');
+  myDumpAddr(ExceptAddr,f);
+  FrameCount:=ExceptFrameCount;
+  Frames:=ExceptFrames;
+  for FrameNumber := 0 to FrameCount-1 do
+    myDumpAddr(Frames[FrameNumber],f);
+end;
+procedure TMainForm._onException(Sender: TObject; E: Exception);
+var
+  f:system.text;
+  crashreportfilename:shortstring;
+begin
+    crashreportfilename:='crashreport.txt';
+    system.Assign(f,crashreportfilename);
+    if FileExists(crashreportfilename) then
+        system.Append(f)
+    else
+        system.Rewrite(f);
+
+    WriteLn(f,'');WriteLn(f,'v.' + AppVersion + ' crashed((');WriteLn(f,'');
+    myDumpExceptionBackTrace(f);
+    system.close(f);
+    halt(0);
+end;
+
 
 procedure TMainForm.FillSpeedsMenu;
 

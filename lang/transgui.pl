@@ -1,6 +1,6 @@
 TranslationLanguage=Polski
 
-"Remote to local path mappings.~~Examples:~/share=\\pch\share~/var/downloads/music=Z:\music"="Mapowanie ścieżek zdalnych do lokalnych.~~Przykłady:~/share=\\pch\share~/var/downloads/music=Z:\music"
+"Remote to local path mappings.~Examples:~/share=\\pch\share~/var/downloads/music=Z:\music"="Mapowanie ścieżek zdalnych do lokalnych.~Przykłady:~/share=\\pch\share~/var/downloads/music=Z:\music"
 %d x %s (have %d)=%d x %s (pobrano %d)
 %ds=%ds
 %s (%d hashfails)=%s (%d błędów bufora)
@@ -265,7 +265,7 @@ Browse=Przeglądaj
 Enable µTP=Włącz µTP
 Select a folder for download=Wybierz folder pobierania
 Select torrent location=Wybierz lokalizację torrenta
-A new version of %s is available.~Your current version: %s~The new version: %s~~Do you wish to open the Downloads web page?=Nowa wersja %s jest dostępna.~Twoja obecna wersja: %s~Nowa wersja: %s~~Czy chcesz otworzyć stronę pobierania?
+A new version of %s is available.~Your current version: %s~The new version: %s~Do you wish to open the Downloads web page?=Nowa wersja %s jest dostępna.~Twoja obecna wersja: %s~Nowa wersja: %s~Czy chcesz otworzyć stronę pobierania?
 Advanced=Zaawansowane
 Check for new version every=Sprawdź dostępność nowych wersji co
 Check for updates=Sprawdź dostępność aktualizacji
@@ -273,7 +273,7 @@ Consider active torrents as stalled when idle for=Uznaj za wstrzymane, aktywne t
 Do you wish to enable automatic checking for a new version of %s?=Czy chcesz włączyć automatyczne sprawdzanie nowej wersji %s?
 Donate!=Dotacje!
 Download queue size=Rozmiar kolejki pobierania
-Error checking for new version=Błąd sprawdzania nowej wersji 
+Error checking for new version=Błąd sprawdzania nowej wersji
 Folder grouping=Grupowanie folderów
 Force start=Wymuś start
 Home page=Strona domowa
@@ -326,7 +326,7 @@ Downloading torrent file=Pobieranie pliku torrent
 Font size=Rozmiar czcionki
 Handle .torrent files by %s=Obsługa plików .torrent przez %s
 Handle magnet links by %s=Obsługa linków magnet przez %s
-Invalid name specified=Określona nazwa jest nieprawidłowa 
+Invalid name specified=Określona nazwa jest nieprawidłowa
 Manage connections to Transmission=Zarządzaj połączeniami do Transmission
 Manage connections=Zarządzaj połączeniami
 Network (WAN)=Sieć (WAN)

@@ -1,9 +1,241 @@
+5.16 (Dec 26, 2018)
+ - Add TravisBuddy
+ - Add EditorConfig
+ - Add support for private column mapping
+ - Add own dialog for password input (*****) (#1123)
+ - Adjust version.txt read method on Travis CI
+ - Catch exception to prevent being crashed
+ - Change data display (processing acceleration)
+ - Change the format for displaying the torrent date/time
+ - Fix a runtime error (#1140)
+ - Fix FromNow routine (#1141)
+ - Fix µ char in history.txt for v3.1
+ - Fix script format for Windows
+ - Fix file format to UNIX & DOS by cases
+ - Fix partial indentation of pas files
+ - Fix password entry for connecting to the transmission
+ - Fix torrent adding with magnet link with '&' within torrent title (#1146)
+ - Increse compiler optimization level
+ - Improve README.md style
+ - Improve shell script format & syntax
+ - Improve macOS compiler install script syntax
+ - Increse privilege to 32bit Docker build to fix build issue
+ - Make sure the final and single newline char at eof
+ - Move to Xcode9.4 & macOS v10.13.4 image on Travis CI
+ - Move to Travis CI new Linux Infrastructure
+ - Move Travis CI Ubuntu environment to Xenial
+ - Parallel zip tarball build test on Travis CI
+ - Remove trailing spaces
+ - Remove unused JSON library
+ - Replace slow IndexOf lookup with GContnrs hashmap (#1164)
+ - Set shell -x in macOS compiler install script
+ - Set  StatusBarSizes to be unchecked by default (#1163)
+ - Switch Travis CI default to optimized minimal environment
+ - Update UK translation (#1079)
+ - Update English translation (#1166)
+ - Update Svenska/Swedish translation (#1185)
+ - Update license header and author info
+ - Update Windows OpenSSL from v1.0.2o to v1.0.2p
+ - Update Lietuvių translation (#1172)
+ - Update the position of the "start torrent" switch in the add torrent window
+ - Update UPX to v3.95 for Windows zip disttribution
+ - Upgrade Lazarus on macOS from v1.8.0 to v1.8.2
+
+5.15.4 (Apr 8, 2018)
+ - Update GitHub issue template
+ - Update Italian translation (#1102)
+ - Update Hungarian translation (#1107)
+ - Add Chocolatey info for Windows (#1113)
+ - Fix mouse scrolls, again (#1062)
+ - Fix change file location error (#1111)
+ - Fix torrent template hint message, again
+
+5.15.3 (Mar 31, 2018)
+ - Fix chaging location error (#1057)
+ - Fix torrent template hint message
+ - Fix mouse scrolls, adapt TVargrid to Lazarus 1.8 (#1062)
+ - Use https instead http to downloda GeoIP Lite data (#1103)
+ - Upgrade OpenSSL for Windows from v1.0.2n to v1.0.2o
+
+5.15.2 (Mar 24, 2018)
+ - Fix an initialization/startup error (#1101)
+
+5.15.1 (Mar 22, 2018)
+ - Support to authenticate with password only as feature of Transmission v2.93 (#1099)
+
+5.15.0 (Mar 21, 2018)
+ - Fix incorrect search if there is a ":"
+ - Fix language display in drop-down list (#1082)
+ - Update RU(Русский) translation (#1080)
+ - Add Local Folder Watch feature (#1070)
+ - Add adding Magnet Link by Hash feature (#1090)
+ - Add Filter by Waiting Category feature (#1089)
+
+5.14.0 (Feb 03, 2018)
+ - Update date and author info
+ - Update `Project home` link in doc (#1068)
+ - Remove `building` wiki link in doc (#1067)
+ - Update README.md `transgui.ini` syntax highlight
+ - Implement the Display of Relative Dates/Times (to Now)
+ - Fix location change error (#1057)
+ - Fix error when changing file location (#1057)
+ - Fix error on torrent names with colons (#1044)
+ - Fix customized shortcut key issue with Lazarus 1.8 (#1063)
+ - Fix main window hide/display behavior when tray icon clicked (#1050)
+ - Set a bold type for the OK button if the torrent startup is turned off when adding
+ - Improve Svenska translation
+ - Improve Hungarian translation
+ - Improve Traditional Chinese translation (#1059)
+ - Set OptimizationLevel to 4 in transgui.lpi
+ - Cleanup Lazarus resourse file (transgui.res)
+ - Remove UnitOutputDirectory config in transgui.lpi
+ - Run lazbuild to generate transgui.res before "make"
+ - Add Inno Setup Unofficial Chinese translation files
+ - Separate "make clean" & "make all" as a bug workaround
+ - Upgrade Lazarus to v1.8.0 & Free Pascal to v3.0.4 on macOS
+ - Move Inno Setup translation out from origin lang directory
+ - Fix v5.13.0 history.txt, broken in accident
+
+5.13.0 (Dec 20, 2017)
+
+ - Add Lazarus v1.8 support (#1040)
+ - Add `-t` to Docker engine in .travis.yml
+ - Add a warning that the torrent start is disabled
+ - Add `zip` package as part unix dependency/requirement
+ - Add an "x" button to help easily clear the search string (#985)
+ - Add bigger toolbar buttons and menu support for touchscreen (#990)
+ - Add connexion name support (#982)
+ - Rename LICENSE.txt -> LICENSE
+ - Retab LICENSE (1 Tab -> 8 Spaces)
+ - Move Travis CI macOS xcode from v9.1 to v9.2
+ - Fix Upload speed display in tray tooltip (#1036)
+ - Make the StatusBarSizes Menu Option persistent (save in transgui.ini)
+ - Update Lazarus version in README, should be v1.6
+ - Update Hungarian translation (#976)
+ - Update Korean translation (#1042)
+ - Upgrade OpenSSL dll for Windows from 1.0.2m to 1.0.2n
+
+5.12.0 (Nov 25, 2017)
+ - Move repository to organization account
+ - Update README.md
+ - Update translation template
+ - Update Korean translation
+ - Update Spanish translation
+ - Update Traditional Chinese translation
+ - Replace Ubuntu 1704 Travis build env w/ Debian stretch
+ - Show global bandwidth limits in status bar (#993)
+ - Add Option to change Statusbar Panels widths (#953)
+ - Fix wrongly disabled menu items for renamed torrents (#884)
+
+5.11.0 (Nov 6, 2017)
+ - Update translation template for missing terms
+ - Update Traditional Chinese translation
+ - Update Simplified Chinese translation (#1024)
+ - Update Nederlands translation
+ - Update README.md(#924, #1001, #1012, #1017, #1020)
+ - Updated the Ararat Synapse library to the latest revision
+ - Update Visual C++ Redistributable to 2013 (12.0.40660)
+ - Update Windows installer logic for Visual C++ Redistributable package
+ - Update the Ararat Synapse library to the latest revision
+ - Upgrade OpenSSL dll for Windows from 1.0.2j to 1.0.2m
+ - Download vcredist on the fly using Inno Download Plugin, solve #1013
+ - Add version number on application window title
+ - Add the user customizable menu option (#1020)
+ - Add the ability to configure the network timeout (#1007)
+ - Add the ability to add new torrents in a stopped state (#1022)
+ - Add simple ISSUE_TEMPLATE.md to decrease false bug alarm (#1012)
+ - Add more Inno Setup official languages for Windows
+ - Add markdown-link-check test on Travis CI
+ - Move macOS environment on Travis CI to xcode9.1
+ - Set DEBIAN_FRONTEND=noninteractive on Travis CI Linux environment
+ - Run apt upgrade on Travis CI before Linux package build
+ - Remove jq on Travis CI, let the script use awk, to speed up
+ - Do not manually install ShellCheck on Travis CI now
+ - Also upload "transgui" single binary to VirusTotal on Travis CI
+
+5.10.0 (Sep 16, 2017)
+[+] Updated Korean translation (#1002, #1003)
+[+] Add armv7l build on Travis CI
+[+] Save Menu and toolbar display option in config (#1004)
+
+5.9.0 (Aug 18, 2017)
+[+] Added missing string "Access violation" in lang
+[+] Added menu and toolbar hiding/showing option
+[+] Fixed language files, ~~ should be ~ (#990)
+[+] Fixed RevisionNumber
+[+] Improved CI config and build scripts
+
+5.8.3 (Jul 28, 2017)
+[+] Updated Korean translation thanks to @bluenlive (#987)
+[+] Updated url in "about" to avoid redirects (#984)
+[+] Updated README.md for Windows release
+[+] Updated Linux building environment to Ubuntu 17.04 (#919)
+[+] Updated unix build script to include txz tarball packaging
+[+] Added "make" to Debian / Ubuntu dependencies
+[+] Added Raspbery Pi / armv6l automatic build on Travis CI
+[+] Added SourceForge mirror specify feature in macOS compiler script
+[+] Fixed readme.txt file format for Windows platform
+[+] Moved directory setup/debian-ubuntu to setup/unix
+[+] Increased Windows installer compression level
+[+] Many tuning on Travis CI for release building
+[+] Now use txz instead zip for unix releases
+
+5.8.2 (Jul 22, 2017)
+[+] Added Portuguese translation.
+[+] Added app screenshot in README.md.
+[+] Added readme.txt back for Windows release.
+[+] Added fpc and Lazarus in the "about" dialog in Linux and macOS builds.
+[+] Now assets of every commit would be uploaded to the cloud for testing.
+[+] Refactored macOS build script.
+[+] Refactored build process on Travis CI.
+[+] Updated Chinese translation.
+[+] Updated the repository link in "about" dialog.
+
+5.8.1 (Jul 10, 2017)
+[+] Updated Chinese translation and translation template.
+[+] Improved macOS build process on Travis CI with some minor bug fixes.
+[+] Changed to use UDBZ as default format of macOS release for smaller size.
+[+] Added setup script for Debian/Ubuntu GNU/Linux.
+[+] Added automatic build for Linux i386/amd64 release using Debian/Ubuntu script on Travis CI.
+[+] Added git commit hash as build serial for offcial release using Debian/Ubuntu script.
+[+] Updated README with markdown format.
+[-] Fixed minor bugs.
+
+5.8.0 (Jul 6, 2017)
+[-] Fixed TLS 1.2 support on non-MacOS platforms
+[+] Updated Traditional Chinese translation
+[+] Re-compressed all png images and zip archive
+
+5.7.0 (Jul 1, 2017)
+[+] Removed support for SSL 2,3.
+[+] Changed script for compiling the program for the Mac.
+[-] Fixed Russian,Ukrainian,Hungarian translation.
+[-] Fixed the "Browse" button in the "Torrent data location" window (Linux)
+[-] Fixed processing of the FileOpenDoc ini-parameter.
+[-] Fixed dynamic associations of ShortCuts to Actions/Menus.
+[-] Fixed display of program icons in Linux.
+[-] Fixed minor bugs.
+
+5.6.0 (Apr 15, 2017)
+[+] Added a delete button from the list of destination directories when adding a torrent. Issue #760
+[+] Added replacement of invalid characters in torrent files (replacement with "_"). Issue #929
+[+] Added warning about using an invalid character "{" in the password. Issue #931
+[+] Added output of additional information to the status bar. Issue #924
+[+] Added the ability to assign their own shortcut keys to access the functions of the program. Issue #924
+[+] Added the ability to assign its file manager to open the torrent directory. Issue #924
+[+] Added the ability to compile and run the program on Raspberry PI 3.
+[+] Added the ability to copy Magnet Links from the popup menu. Issue #930
+[?] Changed the function of opening files in Linux. To select the old option, specify FileOpenDoc=0.
+[-] Fixed add / replace torrent tracker. Issue #929.
+[?] Fixed compilation of the program from the command line in Linux.
+[+] In the Installation for downloading SSL libraries added Visual Redistributable Package (For pure Windows systems. For Linux it would be necessary to make similar)
+
 5.5.1 (Jan 2, 2017)
 [+] Added openssl library for SSL/TLS support functions (windows version)
 [-] Fixed bug. Issue 928
 
 5.5.0 (Dec 31, 2016)
-[+] Build the project using the Lazarus 1.6.2 
+[+] Build the project using the Lazarus 1.6.2
 [+] Added copied magnet links. Issue 911
 [?] Added SSL support ('0.9.8', '1.0.0', '1.0.2', '1.1.0'). Issue 922
 [?] Support high DPI modes. Issue 918
@@ -18,10 +250,10 @@
 
 5.3.0 (Apr 01, 2016)
 [+] Add a column for 'download remaining'. Issue 881,898
-[-] Fix "Global Statistics" shown problem. Issue 897 
+[-] Fix "Global Statistics" shown problem. Issue 897
 [+] Bigger toolbar buttons and menu for touchscreen. Issue 889 (transgui.ini, [MainForm] BigToolbar=1)
 [+] Added shortcuts keys to filter and info panel. Fix button 'Application Option' on the toolbar. Issue 886
-[-] Fix cannot execute on open (nix). Issue 888 
+[-] Fix cannot execute on open (nix). Issue 888
 
 5.2.0 (Dec 09, 2015)
 [-] Fixed various bugs
@@ -51,7 +283,7 @@
 [+] Added entry of the hidden parameter 'MaxFoldersHistory' in the ini file. Parameter specifies the maximum number of directories to store torrents
 [*] Changed the maximum number of stored history MaxFoldersHistory (Default:50)
 [*] Increased quantity of elements in the drop-down lists from 20 to 60 (elements: 'Add torrent...', 'Set data location...')
-[*] Changed sorting directories to store torrents. Directories are sorted by name 
+[*] Changed sorting directories to store torrents. Directories are sorted by name
 [+] Added support for text direction in the program. Issue 734. Parameter 'IgnoreRightLeft' ini-file. 0/1/2/3/4 =nothing/from left to right/from left to right(No Align)/from left to right(Reading Only)
 [+] Added import / export program settings. Issue 752
 
@@ -176,7 +408,7 @@
 [+] Support for Transmission 2.30+.
 [+] Implemented a folder browsing window for choosing torrent destination folder.
 [+] Option to Windows setup to handle magnet links by Transmission Remote GUI.
-[+] The "Enable �TP" daemon option.
+[+] The "Enable µTP" daemon option.
 [+] Average download speed to torrent details.
 [+] Polish translation by piotr.tytus.dobrowolski.
 [+] Traditional Chinese (Taiwan) translation by thelordkao.
@@ -206,7 +438,7 @@
 [+] Added Korean translation by kpsman.
 [+] Added Chinese translation by xtfllbl.
 [+] Added Ukrainian translation by PavelDudn.
-[+] Added Italian translation by ilnero71. 
+[+] Added Italian translation by ilnero71.
 [+] Added Greek translation by lamprakisa.
 [*] Separated connection settings from the program's options.
 [*] Improved handling of connection settings.
@@ -259,7 +491,7 @@
 [*] Use proxy settings for GeoIP database download. Issue #278.
 [-] Improper update of the peer list. Issue #264.
 [-] Incorrect encoding of file names in the Add torrent window.
-[-] Problem to "Open containing folder" from the torrents list for some path mappings. Issue #260. 
+[-] Problem to "Open containing folder" from the torrents list for some path mappings. Issue #260.
 [-] Improper filtering by path in some cases. Issue #262.
 
 2.0 (Aug 11, 2010)
@@ -403,8 +635,8 @@
 0.92 beta (Dec 30, 2008)
 ------------------------
 [+] Torrent filtering by status and by tracker.
-[+] Resolving of peer's host by IP. 
-[+] Resolving of peer's country by IP. 
+[+] Resolving of peer's host by IP.
+[+] Resolving of peer's country by IP.
 [+] Displaying of peer's country flag.
 [*] Store parameters for add torrent window per each host.
 [*] Added "WARNING: Transmission daemon will crash if non-existent folder is specified." to add torrent window.

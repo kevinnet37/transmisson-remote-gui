@@ -1,6 +1,6 @@
 TranslationLanguage=Česky
 
-"Remote to local path mappings.~~Examples:~/share=\\pch\share~/var/downloads/music=Z:\music"="Mapování vzdálené cesty na lokalní.~~Příklady:~/share=\\pch\share~/var/downloads/music=Z:\music"
+"Remote to local path mappings.~Examples:~/share=\\pch\share~/var/downloads/music=Z:\music"="Mapování vzdálené cesty na lokalní.~Příklady:~/share=\\pch\share~/var/downloads/music=Z:\music"
 %d x %s (have %d)=%d x %s (hotových %d)
 %ds=%ds
 %s (%d hashfails)=%s (%d hash chyb)
@@ -251,7 +251,7 @@ Proxy=Proxy
 Remove tracker=Odstranit tracker
 Rename=Přejmenovat
 Speed limit menu items=Položky menu omezení rychlosti
-Stop seeding when inactive for=Přestat seedovat pokud je neaktivní déle jak 
+Stop seeding when inactive for=Přestat seedovat pokud je neaktivní déle jak
 The invalid time value was entered=Byl zadán chybný časový údaj
 to=do
 Tracker announce URL=Announce URL trackeru
@@ -265,7 +265,7 @@ Enable µTP=Povolit µTP
 Select a folder for download=Vybrat adresář pro stahování
 Select torrent location=Vybrat umístění torrentu
 &Close=&Zavřít
-A new version of %s is available.~Your current version: %s~The new version: %s~~Do you wish to open the Downloads web page?=Je dostupná nová verze %s.~Současná verze: %s~Nová verze: %s~~Chtěli byste otevřít stránky se stažením?
+A new version of %s is available.~Your current version: %s~The new version: %s~Do you wish to open the Downloads web page?=Je dostupná nová verze %s.~Současná verze: %s~Nová verze: %s~Chtěli byste otevřít stránky se stažením?
 Advanced=Pokročilé
 Check for new version every=Kontrolovat nové verze jednou za
 Check for updates=Kontrola updatů
